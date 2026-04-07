@@ -1,6 +1,6 @@
 # 🌊 Equilibrium — Ménière's Disease Companion
 
-A compassionate, mobile-first Progressive Web App (PWA) for people living with Ménière's disease. Equilibrium helps you track symptoms, medications, diet, stress, and sleep — and over time, identifies your personal attack triggers.
+A compassionate, mobile first Progressive Web App (PWA) for people living with Ménière's disease. Equilibrium helps you track symptoms, medications, diet, stress, and sleep and over time, identifies your personal attack triggers.
 
 > **All data is stored locally on your device. No account, no server, no data ever leaves your phone.**
 
@@ -112,22 +112,6 @@ python3 -m http.server 3000
 
 ---
 
-## 🚀 Deploying
-
-### Netlify (easiest)
-1. Go to [netlify.com/drop](https://netlify.com/drop)
-2. Drag the `Equilibrium/` folder onto the page
-3. Done — you get a live HTTPS URL instantly
-
-### GitHub Pages
-1. Push this repo to GitHub
-2. Go to **Settings → Pages → Branch: main → Save**
-3. Live at `https://YOURNAME.github.io/equilibrium-app`
-
-> HTTPS is required for the PWA service worker and iPhone home screen installation to work. Both Netlify and GitHub Pages provide it automatically.
-
----
-
 ## 🔒 Privacy
 
 - **Zero data collection.** Everything you log stays in your browser's `localStorage`.
@@ -143,6 +127,11 @@ Equilibrium is a personal tracking tool, not a medical device. It is not a subst
 
 ---
 
-## 💙 About
+## 🤓 About
 
-Built with care for people managing a chronic, unpredictable condition. Ménière's disease affects balance, hearing, and quality of life — this app aims to give you a little more control and insight on the hard days.
+Built with care for people managing a chronic, unpredictable condition. Ménière's disease affects balance, hearing, and quality of life  this app aims to give you a little more control and insight on the hard days.
+
+---
+
+## 💙 For You...
+Dedicated with all my love to my wife Ana Isabel. You deserve to live every day free of pain, free of fear, and full of joy. This was built for you. 💙
