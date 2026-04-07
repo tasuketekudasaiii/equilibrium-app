@@ -1,0 +1,26 @@
+{
+  "name": "Equilibrium — Ménière's Companion",
+  "short_name": "Equilibrium",
+  "description": "A compassionate daily health companion for managing Ménière's disease",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F7F6",
+  "theme_color": "#5B9B8A",
+  "orientation": "portrait-primary",
+  "categories": ["health", "medical"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Equilibrium — Ménière's Companion</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" id="meta-theme" content="#5B9B8A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Equilibrium">
+  <link rel="apple-touch-icon" href="icon.svg">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Header ────────────────────────────── -->
+  <header id="header">
+    <div class="hdr-logo">
+      <img src="icon.svg" alt="Equilibrium">
+      <div>
+        <div class="hdr-title">Equilibrium</div>
+        <div class="hdr-sub" id="header-sub">Loading…</div>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" id="btn-theme" title="Toggle dark mode">🌙</button>
+    </div>
+  </header>
+
+  <!-- ── Main views ────────────────────────── -->
+  <main id="main">
+    <section id="view-home"     class="view active"></section>
+    <section id="view-symptoms" class="view"></section>
+    <section id="view-diet"     class="view"></section>
+    <section id="view-wellness" class="view"></section>
+    <section id="view-more"     class="view"></section>
+  </main>
+
+  <!-- ── Bottom nav ───────────────────────── -->
+  <nav id="bottom-nav">
+    <button class="nav-item active" data-tab="home">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" data-tab="symptoms">
+      <span class="nav-icon">⚡</span>
+      <span class="nav-label">Symptoms</span>
+    </button>
+    <button class="nav-item" data-tab="diet">
+      <span class="nav-icon">🥗</span>
+      <span class="nav-label">Diet</span>
+    </button>
+    <button class="nav-item" data-tab="wellness">
+      <span class="nav-icon">🌿</span>
+      <span class="nav-label">Wellness</span>
+    </button>
+    <button class="nav-item" data-tab="more">
+      <span class="nav-icon">☰</span>
+      <span class="nav-label">More</span>
+    </button>
+  </nav>
+
+  <!-- ── Overlay ───────────────────────────── -->
+  <div id="overlay" class="overlay"></div>
+
+  <!-- ── Panel: Medications ───────────────── -->
+  <div id="panel-medications" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">💊 Medications</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-meds-body"></div>
+    <div class="panel-footer">
+      <button class="btn btn-primary btn-full" id="btn-open-add-med" data-action="add-med">+ Add Medication</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Add Medication ────────────── -->
+  <div id="panel-add-med" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">Add Medication</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-add-med-body"></div>
+    <div class="panel-footer">
+      <button class="btn btn-primary btn-full" type="submit" form="form-add-med">Save Medication</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Log Attack ────────────────── -->
+  <div id="panel-log-attack" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">⚡ Log Attack</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-log-attack-body"></div>
+    <div class="panel-footer">
+      <button class="btn btn-primary btn-full" type="submit" form="form-log-attack">Save Attack Log</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Food Search ───────────────── -->
+  <div id="panel-food-search" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">🔍 Log Food</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body">
+      <div class="form-group">
+        <input type="search" class="form-input" id="food-search-input"
+          placeholder="Search foods (e.g. soup, bread, chicken)…"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div id="food-search-results"></div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Trigger Insights ──────────── -->
+  <div id="panel-triggers" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">🔍 Trigger Insights</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-triggers-body"></div>
+  </div>
+
+  <!-- ── Panel: Doctor Report ─────────────── -->
+  <div id="panel-report" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">📋 Doctor Report</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-report-body"></div>
+    <div class="panel-footer">
+      <button class="btn btn-primary btn-full" id="btn-copy-report">📋 Copy Report</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Emergency Card ────────────── -->
+  <div id="panel-emergency" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">🚨 Emergency Card</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-emergency-body"></div>
+  </div>
+
+  <!-- ── Toast ─────────────────────────────── -->
+  <div id="toast"></div>
+
+</div><!-- #app -->
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- App logic -->
+<script src="app.js"></script>
+</body>
+</html>
