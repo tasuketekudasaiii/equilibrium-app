@@ -295,11 +295,11 @@ function renderHome() {
 
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">Quick Actions</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="btn btn-outline" data-go="symptoms">⚡ Log Attack</button>
-        <button class="btn btn-outline" data-action="medications">💊 Medications</button>
-        <button class="btn btn-outline" data-go="wellness">😌 Check In</button>
-        <button class="btn btn-outline" data-action="emergency">🚨 Emergency Card</button>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">
+        <button class="btn btn-outline btn-qa" data-go="symptoms">⚡ Log Attack</button>
+        <button class="btn btn-outline btn-qa" data-action="medications">💊 Medications</button>
+        <button class="btn btn-outline btn-qa" data-go="wellness">😌 Check In</button>
+        <button class="btn btn-outline btn-qa" data-action="emergency">🚨 Emergency Card</button>
       </div>
     </div>
 
