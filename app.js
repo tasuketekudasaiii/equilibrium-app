@@ -20,7 +20,8 @@ const SYMPTOMS = [
   {id:'vertigo',label:'🌀 Vertigo'},{id:'tinnitus',label:'🔔 Tinnitus'},
   {id:'hearing',label:'👂 Hearing Loss'},{id:'pressure',label:'🫧 Ear Pressure'},
   {id:'nausea',label:'🤢 Nausea'},{id:'vomiting',label:'🤮 Vomiting'},
-  {id:'migraine',label:'🤕 Migraine'},{id:'drop',label:'⚠️ Drop Attack'},
+  {id:'migraine',label:'🤕 Migraine'},{id:'brainfog',label:'🧠 Brain Fog'},
+  {id:'drop',label:'⚠️ Drop Attack'},
 ];
 const MOODS = [
   {id:'great',e:'😊',l:'Great'},{id:'calm',e:'😌',l:'Calm'},
