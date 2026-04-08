@@ -1396,6 +1396,12 @@ document.addEventListener('click', e => {
   }
 });
 
+// Logo — go home and refresh
+document.getElementById('btn-home').addEventListener('click', () => {
+  closePanel();
+  switchTab('home');
+});
+
 // Theme toggle
 document.getElementById('btn-theme').addEventListener('click', () => {
   const s = DB.settings();
