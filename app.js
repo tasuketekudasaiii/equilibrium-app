@@ -1381,11 +1381,8 @@ const Cal = {
     // Can't go past current month
     const isCurrMonth  = (year === now.getFullYear() && month === now.getMonth());
 
-    // Build day cells
+    // Build day cells — use grid-column-start on day 1 instead of empty filler cells
     let cells = '';
-    // Empty leading cells
-    for (let i = 0; i < firstDay; i++) cells += `<div class="cal-day empty"></div>`;
-    // Day cells
     for (let d = 1; d <= daysInMon; d++) {
       const dateStr  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isFuture = dateStr > todayStr;
@@ -1399,7 +1396,8 @@ const Cal = {
         isSel    ? 'selected' : '',
         hasData && !isSel ? 'has-data' : '',
       ].filter(Boolean).join(' ');
-      cells += `<div class="${cls}" data-pick="${dateStr}">${d}</div>`;
+      const style = d === 1 && firstDay > 0 ? ` style="grid-column-start:${firstDay + 1}"` : '';
+      cells += `<div class="${cls}" data-pick="${dateStr}"${style}>${d}</div>`;
     }
 
     qs('#cal-modal').innerHTML = `
