@@ -1,4 +1,4 @@
-const CACHE = 'equilibrium-v3';
+const CACHE = 'equilibrium-v4';
 const STATIC = [
   './index.html',
   './app.css',
@@ -8,6 +8,7 @@ const STATIC = [
   './icon-maskable.svg',
   './apple-touch-icon.png',
   './icon-192.png',
+  './icon-512.png',
 ];
 
 // Install: pre-cache all static assets
