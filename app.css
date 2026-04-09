@@ -465,3 +465,24 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Quick action grid buttons */
 .btn-qa { font-size: 13px; padding: 12px 6px; white-space: normal; text-align: center; line-height: 1.3; min-width: 0; }
+
+/* Date navigator */
+.date-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border-radius: var(--r-lg);
+  padding: 10px var(--sp-md); margin-bottom: var(--sp-md);
+  box-shadow: 0 2px 12px var(--shadow);
+}
+.date-nav-btn {
+  width: 36px; height: 36px; border-radius: var(--r-md);
+  background: var(--surface2); display: flex; align-items: center;
+  justify-content: center; font-size: 18px; color: var(--p);
+  transition: all var(--tr); flex-shrink: 0;
+}
+.date-nav-btn:disabled { opacity: 0.25; pointer-events: none; }
+.date-nav-btn:active { background: var(--surface3); }
+.date-nav-center { text-align: center; flex: 1; }
+.date-nav-label { font-size: 15px; font-weight: 700; color: var(--text); }
+.date-nav-sub { font-size: 11px; color: var(--text-m); margin-top: 1px; }
+.date-nav-today { display: inline-block; font-size: 10px; font-weight: 700; background: var(--p); color: white; padding: 2px 8px; border-radius: var(--r-f); margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+.past-banner { background: var(--surface2); border-radius: var(--r-md); padding: 8px 12px; margin-bottom: var(--sp-md); font-size: 13px; color: var(--text-m); text-align: center; }

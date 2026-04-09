@@ -173,6 +173,7 @@ const S = {
   panel:null,
   attack:null,  // {id, startISO, interval}
   charts:{},
+  viewDate: today(), // date currently being viewed across all tabs
 };
 
 // ── Panel helpers ─────────────────────────────────────────────────
@@ -209,6 +210,30 @@ function switchTab(tab) {
   renders[tab]?.();
 }
 
+// ── Date Navigation ───────────────────────────────────────────────
+function shiftDate(dateStr, days) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+function dateNav() {
+  const d      = S.viewDate;
+  const isToday = d === today();
+  const label  = isToday ? 'Today' : fmtDate(d);
+  const dow    = isToday ? '' : new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long'});
+  return `
+    <div class="date-nav">
+      <button class="date-nav-btn" data-action="prev-day">‹</button>
+      <div class="date-nav-center">
+        <div class="date-nav-label">${label}</div>
+        ${!isToday ? `<div class="date-nav-sub">${dow}</div>` : ''}
+        ${isToday ? '<div class="date-nav-today">Today</div>' : ''}
+      </div>
+      <button class="date-nav-btn" data-action="next-day" ${isToday ? 'disabled' : ''}>›</button>
+    </div>`;
+}
+
 // ── Encouraging messages ──────────────────────────────────────────
 function getBannerMsg(attacks7, sodium, glasses) {
   if (attacks7 === 0) return {icon:'🌟', title:"No attacks this week!", msg:"You're doing amazing. Keep up the consistent habits — they make a real difference."};
@@ -220,7 +245,8 @@ function getBannerMsg(attacks7, sodium, glasses) {
 
 // ── HOME VIEW ─────────────────────────────────────────────────────
 function renderHome() {
-  const t = today();
+  const t       = S.viewDate;
+  const isToday = t === today();
   const sodium  = DB.totalSodium(t);
   const sGoal   = DB.settings().sodiumGoal || SODIUM_GOAL;
   const glasses = DB.hydFor(t);
@@ -234,15 +260,16 @@ function renderHome() {
   const hPct    = pct(glasses, HYDRATION_GOAL);
 
   qs('#view-home').innerHTML = `
-    <div class="view-date">${dateStr}</div>
+    ${dateNav()}
 
+    ${isToday ? `
     <div class="banner">
       <div class="banner-icon">${banner.icon}</div>
       <div>
         <div class="banner-title">${banner.title}</div>
         <div class="banner-text">${banner.msg}</div>
       </div>
-    </div>
+    </div>` : `<div class="past-banner">📅 Viewing past data — changes will be saved to ${fmtDate(t)}</div>`}
 
     <div class="stats-grid">
       <div class="stat-card">
@@ -344,12 +371,18 @@ function renderWaterRow(sel, filled, prefix) {
 
 // ── SYMPTOMS VIEW ──────────────────────────────────────────────────
 function renderSymptoms() {
-  const attacks = DB.attacks();
+  const t       = S.viewDate;
+  const isToday = t === today();
+  const allAttacks = DB.attacks();
+  // Show attacks for the viewed date in the "today" slot, full history below
+  const dayAttacks = allAttacks.filter(a => a.date === t);
+  const attacks    = allAttacks;
   const active  = S.attack;
 
   qs('#view-symptoms').innerHTML = `
-    <div class="sec-hdr"><div class="sec-title">⚡ Symptom Log</div></div>
+    ${dateNav()}
 
+    ${isToday ? `
     <div class="card" style="text-align:center;padding:var(--sp-lg)">
       <p style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-md)">
         ${active ? 'Attack in progress — tap to stop & log' : 'Feeling an attack? Tap to start the timer'}
@@ -360,10 +393,33 @@ function renderSymptoms() {
         ${active ? `<span class="attack-timer" id="attack-clock">--:--</span>` : ''}
       </button>
       ${active ? '' : `<button class="btn btn-ghost btn-sm" style="margin-top:var(--sp-md)" data-action="log-attack">+ Log past attack</button>`}
-    </div>
+    </div>` : `<div class="past-banner">📅 Viewing attacks for ${fmtDate(t)}</div>`}
 
-    <div class="sec-hdr">
-      <div class="sec-title">History</div>
+    ${!isToday && dayAttacks.length === 0 ? `
+      <div class="empty">
+        <div class="empty-icon">✨</div>
+        <div class="empty-title">No attacks on ${fmtDate(t)}</div>
+        <div class="empty-text">Nothing was logged for this day.</div>
+      </div>` : ''}
+
+    ${dayAttacks.length > 0 ? `
+      <div class="sec-hdr"><div class="sec-title">Attacks on ${fmtDate(t)}</div><span class="pill pill-p">${dayAttacks.length}</span></div>
+      <div class="card">${dayAttacks.map(a => `
+        <div class="list-item">
+          <div class="list-icon">⚡</div>
+          <div class="list-content">
+            <div class="list-title">${a.startTime ? fmtTime(a.startTime) : 'Time not recorded'}</div>
+            <div class="list-sub">${fmtDur(a.duration)} · ${(a.symptoms||[]).join(', ')||'No symptoms noted'}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="pill ${a.intensity>=7?'pill-danger':a.intensity>=4?'pill-warn':'pill-success'}">${a.intensity}/10</span>
+            <button class="btn-icon" data-action="del-attack" data-id="${a.id}" style="font-size:14px;color:var(--text-m)">🗑</button>
+          </div>
+        </div>`).join('')}
+      </div>` : ''}
+
+    <div class="sec-hdr" style="margin-top:var(--sp-sm)">
+      <div class="sec-title">Full History</div>
       ${attacks.length > 0 ? `<span class="pill pill-p">${attacks.length} total</span>` : ''}
     </div>
 
@@ -510,7 +566,8 @@ function renderLogAttackPanel(prefillStart) {
 
 // ── DIET VIEW ──────────────────────────────────────────────────────
 function renderDiet() {
-  const t = today();
+  const t       = S.viewDate;
+  const isToday = t === today();
   const sGoal  = DB.settings().sodiumGoal || SODIUM_GOAL;
   const sodium  = DB.totalSodium(t);
   const items   = DB.sodiumFor(t).items || [];
@@ -519,8 +576,9 @@ function renderDiet() {
   const sPct    = pct(sodium, sGoal);
 
   qs('#view-diet').innerHTML = `
+    ${dateNav()}
+    ${!isToday ? `<div class="past-banner">📅 Viewing diet data for ${fmtDate(t)}</div>` : ''}
     <div class="sec-hdr"><div class="sec-title">🥗 Diet Tracker</div></div>
-    <div class="view-date">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>
 
     <!-- Sodium -->
     <div class="card">
@@ -596,13 +654,15 @@ function renderDiet() {
 
 // ── WELLNESS VIEW ──────────────────────────────────────────────────
 function renderWellness() {
-  const t = today();
+  const t       = S.viewDate;
+  const isToday = t === today();
   const stress = DB.stressFor(t) || {level:5, mood:'calm', notes:''};
   const sleep  = DB.sleepFor(t);
 
   qs('#view-wellness').innerHTML = `
+    ${dateNav()}
+    ${!isToday ? `<div class="past-banner">📅 Viewing wellness data for ${fmtDate(t)}</div>` : ''}
     <div class="sec-hdr"><div class="sec-title">🌿 Wellness Check-In</div></div>
-    <div class="view-date">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>
 
     <!-- Stress & Mood -->
     <div class="card">
@@ -694,8 +754,8 @@ function renderWellness() {
     const level = +qs('#stress-slider').value;
     const mood  = qs('.mood-btn.selected')?.dataset.mood || 'calm';
     const notes = qs('#stress-notes').value.trim();
-    DB.saveStress(t, {level, mood, notes});
-    showToast('Check-in saved 💙');
+    DB.saveStress(S.viewDate, {level, mood, notes});
+    showToast(isToday ? 'Check-in saved 💙' : `Saved for ${fmtDate(S.viewDate)} 💙`);
   });
 
   // Save sleep
@@ -708,9 +768,9 @@ function renderWellness() {
       const [wh,wm] = wake.split(':').map(Number);
       dur = ((wh*60+wm) - (bh*60+bm) + 1440) % 1440 / 60;
     }
-    DB.saveSleep(t, {bedtime:bed, wakeTime:wake, duration:Math.round(dur*10)/10, quality:selectedStar});
+    DB.saveSleep(S.viewDate, {bedtime:bed, wakeTime:wake, duration:Math.round(dur*10)/10, quality:selectedStar});
     renderWellness();
-    showToast('Sleep logged 🌙');
+    showToast(isToday ? 'Sleep logged 🌙' : `Sleep saved for ${fmtDate(S.viewDate)} 🌙`);
   });
 
   setTimeout(() => renderStressChart(), 50);
@@ -1272,7 +1332,7 @@ function setupCustomFood() {
 }
 
 function addFoodToLog(food) {
-  DB.addSodiumItem(today(), food);
+  DB.addSodiumItem(S.viewDate, food);
   closePanel();
   const currentTab = S.tab;
   if (currentTab === 'diet') renderDiet();
@@ -1300,6 +1360,20 @@ document.addEventListener('click', e => {
   const act = e.target.closest('[data-action]')?.dataset.action;
   if (act) {
     switch(act) {
+      case 'prev-day': {
+        S.viewDate = shiftDate(S.viewDate, -1);
+        const renders = {home:renderHome,symptoms:renderSymptoms,diet:renderDiet,wellness:renderWellness};
+        renders[S.tab]?.();
+        break;
+      }
+      case 'next-day': {
+        if (S.viewDate < today()) {
+          S.viewDate = shiftDate(S.viewDate, 1);
+          const renders = {home:renderHome,symptoms:renderSymptoms,diet:renderDiet,wellness:renderWellness};
+          renders[S.tab]?.();
+        }
+        break;
+      }
       case 'food-search': renderFoodSearch(); break;
       case 'medications': openPanel('panel-medications', renderMedicationsPanel); break;
       case 'triggers':    openPanel('panel-triggers', renderTriggersPanel); break;
@@ -1315,7 +1389,7 @@ document.addEventListener('click', e => {
       }
       case 'water-glass': {
         const g = +e.target.closest('[data-glass]').dataset.glass;
-        const t = today();
+        const t = S.viewDate;
         const cur = DB.hydFor(t);
         const newVal = g < cur ? g : g + 1;
         DB.setHyd(t, clamp(newVal, 0, HYDRATION_GOAL));
@@ -1325,7 +1399,7 @@ document.addEventListener('click', e => {
         break;
       }
       case 'caff-inc': case 'caff-dec': {
-        const t=today(); const ca=DB.caffFor(t);
+        const t=S.viewDate; const ca=DB.caffFor(t);
         ca.c = clamp(ca.c + (act.endsWith('inc')?1:-1), 0, 20);
         DB.saveCaff(t, ca);
         qs('#caff-val').textContent = ca.c;
@@ -1333,7 +1407,7 @@ document.addEventListener('click', e => {
         break;
       }
       case 'alc-inc': case 'alc-dec': {
-        const t=today(); const ca=DB.caffFor(t);
+        const t=S.viewDate; const ca=DB.caffFor(t);
         ca.a = clamp(ca.a + (act.endsWith('inc')?1:-1), 0, 20);
         DB.saveCaff(t, ca);
         qs('#alc-val').textContent = ca.a;
