@@ -1340,6 +1340,111 @@ function addFoodToLog(food) {
   showToast(`+${food.s}mg sodium logged`);
 }
 
+// ── CALENDAR PICKER ──────────────────────────────────────────────
+const Cal = {
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(), // 0-indexed
+
+  open() {
+    const d = new Date(S.viewDate + 'T12:00:00');
+    this.year  = d.getFullYear();
+    this.month = d.getMonth();
+    this.render();
+    qs('#cal-overlay').classList.add('on');
+  },
+
+  close() {
+    qs('#cal-overlay').classList.remove('on');
+  },
+
+  render() {
+    const now      = new Date();
+    const todayStr = today();
+    const year     = this.year;
+    const month    = this.month;
+
+    // First day of month & total days
+    const firstDay  = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMon = new Date(year, month + 1, 0).getDate();
+    const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'});
+
+    // Gather days that have logged data (attacks or sodium)
+    const attacks = DB.attacks();
+    const sodiumLog = DB.sodiumLog();
+    const dataDays = new Set([
+      ...attacks.map(a => a.date),
+      ...Object.keys(sodiumLog).filter(d => (sodiumLog[d]?.items||[]).length > 0),
+    ]);
+
+    // Can't go before earliest data or below year 2020
+    const isFirstMonth = (year === 2020 && month === 0);
+    // Can't go past current month
+    const isCurrMonth  = (year === now.getFullYear() && month === now.getMonth());
+
+    // Build day cells
+    let cells = '';
+    // Empty leading cells
+    for (let i = 0; i < firstDay; i++) cells += `<div class="cal-day empty"></div>`;
+    // Day cells
+    for (let d = 1; d <= daysInMon; d++) {
+      const dateStr  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isFuture = dateStr > todayStr;
+      const isToday  = dateStr === todayStr;
+      const isSel    = dateStr === S.viewDate;
+      const hasData  = dataDays.has(dateStr);
+      const cls = [
+        'cal-day',
+        isFuture ? 'future' : '',
+        isToday  ? 'is-today' : '',
+        isSel    ? 'selected' : '',
+        hasData && !isSel ? 'has-data' : '',
+      ].filter(Boolean).join(' ');
+      cells += `<div class="${cls}" data-pick="${dateStr}">${d}</div>`;
+    }
+
+    qs('#cal-modal').innerHTML = `
+      <div class="cal-hdr">
+        <button class="cal-nav-btn" id="cal-prev" ${isFirstMonth ? 'disabled' : ''}>‹</button>
+        <div class="cal-month-lbl">${monthLabel}</div>
+        <button class="cal-nav-btn" id="cal-next" ${isCurrMonth ? 'disabled' : ''}>›</button>
+      </div>
+      <div class="cal-dow-row">
+        ${['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+      </div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-legend">
+        <span><span class="cal-legend-dot" style="background:var(--p)"></span>Selected / Today</span>
+        <span><span class="cal-legend-dot" style="background:var(--accent)"></span>Has logged data</span>
+      </div>
+      <div class="cal-close-row">
+        <button class="btn btn-ghost btn-full btn-sm" id="cal-close-btn">Close</button>
+      </div>
+    `;
+
+    qs('#cal-prev').onclick = () => {
+      if (this.month === 0) { this.year--; this.month = 11; }
+      else this.month--;
+      this.render();
+    };
+    qs('#cal-next').onclick = () => {
+      if (this.month === 11) { this.year++; this.month = 0; }
+      else this.month++;
+      this.render();
+    };
+    qs('#cal-close-btn').onclick = () => this.close();
+
+    // Day picks
+    qs('#cal-modal').addEventListener('click', e => {
+      const pick = e.target.closest('[data-pick]')?.dataset.pick;
+      if (!pick) return;
+      S.viewDate = pick;
+      this.close();
+      const renders = {home:renderHome, symptoms:renderSymptoms, diet:renderDiet, wellness:renderWellness};
+      renders[S.tab]?.();
+    }, {once: true});
+  },
+};
+
 // ── THEME ────────────────────────────────────────────────────────
 function applyTheme(dark) {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -1468,6 +1573,16 @@ document.addEventListener('click', e => {
   if (e.target.closest('#btn-open-add-med')) {
     openPanel('panel-add-med', renderAddMedPanel); return;
   }
+});
+
+// Calendar — open on date label click (event delegation since it's rendered dynamically)
+document.addEventListener('click', e => {
+  if (e.target.closest('.date-nav-center')) Cal.open();
+});
+
+// Calendar — close on overlay backdrop click
+qs('#cal-overlay').addEventListener('click', e => {
+  if (e.target === qs('#cal-overlay')) Cal.close();
 });
 
 // Logo — go home and refresh
