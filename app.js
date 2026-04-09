@@ -385,7 +385,7 @@ function renderSymptoms() {
     ${isToday ? `
     <div class="card" style="text-align:center;padding:var(--sp-lg)">
       <p style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-md)">
-        ${active ? 'Attack in progress — tap to stop & log' : 'Feeling an attack? Tap to start the timer'}
+        ${active ? 'Attack in progress — tap to stop & log' : 'Feeling an attack? Tap to log it now'}
       </p>
       <button class="attack-btn ${active ? 'recording' : ''}" id="attack-btn">
         <span>${active ? '⏹' : '⚡'}</span>
@@ -519,6 +519,17 @@ function renderLogAttackPanel(prefillStart) {
   const defaultDate = today();
   const defaultTime = now.toTimeString().slice(0,5);
 
+  // Pre-fill duration from elapsed time if available
+  const elapsedMin  = prefillStart ? Math.max(0, Math.round((Date.now() - new Date(prefillStart)) / 60000)) : 0;
+  const prefillH    = Math.min(23, Math.floor(elapsedMin / 60));
+  const prefillMRaw = elapsedMin % 60;
+  const prefillM    = Math.round(prefillMRaw / 5) * 5 >= 60 ? 55 : Math.round(prefillMRaw / 5) * 5;
+
+  const hourOpts = Array.from({length:24}, (_,i) =>
+    `<option value="${i}"${i===prefillH?' selected':''}>${i}h</option>`).join('');
+  const minOpts  = [0,5,10,15,20,25,30,35,40,45,50,55].map(m =>
+    `<option value="${m}"${m===prefillM?' selected':''}>${m}m</option>`).join('');
+
   bodyEl.innerHTML = `
     <form id="form-log-attack">
       <div class="form-group">
@@ -530,9 +541,11 @@ function renderLogAttackPanel(prefillStart) {
         <input type="time" class="form-input" name="startTime" value="${prefillStart ? new Date(prefillStart).toTimeString().slice(0,5) : defaultTime}">
       </div>
       <div class="form-group">
-        <label class="form-label">Duration (minutes)</label>
-        <input type="number" class="form-input" name="duration" placeholder="e.g. 45" min="1" max="1440"
-          value="${prefillStart ? Math.round((Date.now()-new Date(prefillStart))/60000) : ''}">
+        <label class="form-label">Duration</label>
+        <div class="dur-picker">
+          <select name="dur-h" class="form-input dur-sel">${hourOpts}</select>
+          <select name="dur-m" class="form-input dur-sel">${minOpts}</select>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Intensity <span id="intensity-val" style="color:var(--p)">5</span>/10</label>
@@ -1344,11 +1357,13 @@ function addFoodToLog(food) {
 const Cal = {
   year: new Date().getFullYear(),
   month: new Date().getMonth(), // 0-indexed
+  mode: 'days', // 'days' | 'picker'
 
   open() {
     const d = new Date(S.viewDate + 'T12:00:00');
     this.year  = d.getFullYear();
     this.month = d.getMonth();
+    this.mode  = 'days';
     this.render();
     qs('#cal-overlay').classList.add('on');
   },
@@ -1357,7 +1372,42 @@ const Cal = {
     qs('#cal-overlay').classList.remove('on');
   },
 
+  renderPicker() {
+    const now = new Date();
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const isPastLimit = this.year <= 2020;
+    const isFutureLimit = this.year >= now.getFullYear();
+    qs('#cal-modal').innerHTML = `
+      <div class="cal-hdr">
+        <button class="cal-nav-btn" id="cal-yr-prev" ${isPastLimit ? 'disabled' : ''}>‹</button>
+        <div class="cal-month-lbl" style="cursor:default">${this.year}</div>
+        <button class="cal-nav-btn" id="cal-yr-next" ${isFutureLimit ? 'disabled' : ''}>›</button>
+      </div>
+      <div class="cal-month-grid">
+        ${MONTHS.map((m, i) => {
+          const isFuture = this.year === now.getFullYear() && i > now.getMonth();
+          const isSel    = this.year === new Date(S.viewDate+'T12:00:00').getFullYear() && i === new Date(S.viewDate+'T12:00:00').getMonth();
+          return `<button class="cal-mon-btn${isSel?' selected':''}${isFuture?' disabled':''}" data-mi="${i}" ${isFuture?'disabled':''}>${m}</button>`;
+        }).join('')}
+      </div>
+      <div class="cal-close-row">
+        <button class="btn btn-ghost btn-full btn-sm" id="cal-close-btn">Close</button>
+      </div>
+    `;
+    qs('#cal-yr-prev').onclick = () => { this.year--; this.renderPicker(); };
+    qs('#cal-yr-next').onclick = () => { this.year++; this.renderPicker(); };
+    qs('#cal-close-btn').onclick = () => this.close();
+    qs('.cal-month-grid').addEventListener('click', e => {
+      const btn = e.target.closest('[data-mi]');
+      if (!btn || btn.disabled) return;
+      this.month = +btn.dataset.mi;
+      this.mode  = 'days';
+      this.render();
+    });
+  },
+
   render() {
+    if (this.mode === 'picker') { this.renderPicker(); return; }
     const now      = new Date();
     const todayStr = today();
     const year     = this.year;
@@ -1403,7 +1453,7 @@ const Cal = {
     qs('#cal-modal').innerHTML = `
       <div class="cal-hdr">
         <button class="cal-nav-btn" id="cal-prev" ${isFirstMonth ? 'disabled' : ''}>‹</button>
-        <div class="cal-month-lbl">${monthLabel}</div>
+        <div class="cal-month-lbl cal-month-lbl-btn" id="cal-month-lbl" title="Pick month & year">${monthLabel} ▾</div>
         <button class="cal-nav-btn" id="cal-next" ${isCurrMonth ? 'disabled' : ''}>›</button>
       </div>
       <div class="cal-dow-row">
@@ -1429,6 +1479,7 @@ const Cal = {
       else this.month++;
       this.render();
     };
+    qs('#cal-month-lbl').onclick = () => { this.mode = 'picker'; this.renderPicker(); };
     qs('#cal-close-btn').onclick = () => this.close();
 
     // Day picks
@@ -1557,9 +1608,14 @@ document.addEventListener('click', e => {
     return;
   }
 
-  // Attack button
+  // Attack button — open log panel immediately (skip timer)
   if (e.target.closest('#attack-btn')) {
-    S.attack ? stopAttack() : startAttack(); return;
+    if (S.attack) {
+      stopAttack(); // already timing → stop and open log
+    } else {
+      openPanel('panel-log-attack', () => renderLogAttackPanel(nowISO()));
+    }
+    return;
   }
 
   // Panel close
@@ -1611,7 +1667,7 @@ document.addEventListener('submit', e => {
 
   if (form.id === 'form-log-attack') {
     const fd = new FormData(form);
-    const dur = parseInt(fd.get('duration')) || 0;
+    const dur = (parseInt(fd.get('dur-h')) || 0) * 60 + (parseInt(fd.get('dur-m')) || 0);
     const startTimeStr = fd.get('startTime');
     const dateStr = fd.get('date') || today();
     const startISO = startTimeStr ? `${dateStr}T${startTimeStr}:00` : null;

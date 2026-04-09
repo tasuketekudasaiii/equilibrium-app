@@ -542,3 +542,23 @@ input[type="range"]::-webkit-slider-thumb {
 .cal-close-row { margin-top: var(--sp-md); }
 .cal-legend { display: flex; gap: var(--sp-md); justify-content: center; margin-top: var(--sp-sm); font-size: 11px; color: var(--text-m); }
 .cal-legend-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle; }
+
+/* Month label — clickable to open year/month picker */
+.cal-month-lbl-btn { cursor: pointer; user-select: none; border-radius: var(--r-sm); padding: 2px 8px; transition: background 0.15s; }
+.cal-month-lbl-btn:hover { background: var(--p-faint); color: var(--p); }
+.cal-month-lbl-btn:active { background: var(--p-faint); }
+
+/* Month-year picker grid */
+.cal-month-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: var(--sp-md) 0; }
+.cal-mon-btn {
+  padding: 10px 4px; border-radius: var(--r-md); border: none;
+  background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.cal-mon-btn:hover:not(:disabled) { background: var(--p-faint); color: var(--p); }
+.cal-mon-btn.selected { background: var(--p); color: white; font-weight: 700; }
+.cal-mon-btn.disabled, .cal-mon-btn:disabled { opacity: 0.25; pointer-events: none; }
+
+/* Duration picker — hours + minutes selects side by side */
+.dur-picker { display: flex; gap: var(--sp-sm); }
+.dur-sel { flex: 1; text-align: center; }
