@@ -809,6 +809,86 @@ function renderStressChart() {
 }
 
 // ── MORE VIEW ──────────────────────────────────────────────────────
+function renderAboutPanel() {
+  qs('#panel-about-body').innerHTML = `
+
+    <div style="text-align:center;padding:var(--sp-lg) 0 var(--sp-md)">
+      <div style="width:72px;height:72px;border-radius:18px;background:#5B9B8A;margin:0 auto var(--sp-md);display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 512 512" width="48" height="48" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 96 196 Q 176 156 256 196 Q 336 236 416 196" stroke="white" stroke-width="36" fill="none" stroke-linecap="round"/>
+          <path d="M 96 256 Q 176 216 256 256 Q 336 296 416 256" stroke="white" stroke-width="36" fill="none" stroke-linecap="round"/>
+          <path d="M 96 316 Q 176 276 256 316 Q 336 356 416 316" stroke="white" stroke-width="36" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div style="font-size:22px;font-weight:800;color:var(--text)">Equilibrium</div>
+      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v1.0</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">What is Ménière's Disease?</div>
+      <p style="font-size:14px;line-height:1.65;color:var(--text-m)">
+        Ménière's disease is a chronic inner-ear condition that causes unpredictable episodes of
+        vertigo, tinnitus (ringing in the ears), fluctuating hearing loss, and a feeling of
+        fullness in the ear. Symptoms vary widely from person to person and can significantly
+        impact daily life.
+      </p>
+      <p style="font-size:14px;line-height:1.65;color:var(--text-m);margin-top:var(--sp-sm)">
+        While there is currently no cure, consistent tracking of diet, stress, sleep, and
+        symptoms can help identify personal triggers and give your doctor a clear picture of
+        your condition.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">What Equilibrium Tracks</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${[
+          ['⚡','Attacks & Symptoms','Log vertigo episodes with intensity, duration, and symptoms experienced'],
+          ['🧂','Sodium Intake','Monitor daily sodium against your personal target'],
+          ['💧','Hydration','Count daily water glasses toward your hydration goal'],
+          ['😌','Stress & Mood','Journal your stress level and emotional state each day'],
+          ['😴','Sleep','Track nightly sleep hours and quality'],
+          ['☕','Caffeine & Alcohol','Monitor consumption of common Ménière\'s triggers'],
+          ['💊','Medications','Log your meds and track daily dose adherence'],
+          ['🔍','Trigger Insights','Correlate your habits with attack frequency'],
+          ['📋','Doctor Report','Generate a 30-day summary for your next appointment'],
+        ].map(([icon, title, desc]) => `
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <span style="font-size:20px;flex-shrink:0;margin-top:1px">${icon}</span>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--text)">${title}</div>
+              <div style="font-size:12px;color:var(--text-m);line-height:1.5;margin-top:2px">${desc}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">🔒 Privacy</div>
+      <p style="font-size:14px;line-height:1.65;color:var(--text-m)">
+        All your health data is stored <strong>only on this device</strong> using your browser's
+        local storage. Nothing is ever sent to a server, shared with third parties, or backed up
+        to the cloud. If you clear your browser data, your Equilibrium data will be deleted.
+      </p>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">⚕️ Medical Disclaimer</div>
+      <p style="font-size:13px;line-height:1.65;color:var(--text-m)">
+        Equilibrium is a personal tracking tool and is <strong>not a medical device</strong>.
+        It is not intended to diagnose, treat, cure, or prevent any disease. Always follow the
+        advice of your physician or qualified health provider. If you are experiencing a medical
+        emergency, call your local emergency services immediately.
+      </p>
+    </div>
+
+    <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);padding-bottom:var(--sp-md);line-height:1.7">
+      Made with care for the Ménière's community 🌊<br>
+      Open source · No ads · No tracking
+    </p>
+  `;
+}
+
 function renderMore() {
   qs('#view-more').innerHTML = `
     <div class="sec-hdr" style="margin-bottom:var(--sp-lg)"><div class="sec-title">More</div></div>
@@ -849,6 +929,15 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
+    <div class="more-item" data-action="about">
+      <div class="more-icon" style="background:#EEF0FF">ℹ️</div>
+      <div class="more-content">
+        <div class="more-title">About Equilibrium</div>
+        <div class="more-sub">App info, privacy & disclaimer</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
     <div class="card" style="margin-top:var(--sp-lg)">
       <div class="card-title" style="margin-bottom:var(--sp-md)">Settings</div>
       <div class="form-group">
@@ -866,9 +955,7 @@ function renderMore() {
     </div>
 
     <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
-      Equilibrium — A Ménière's companion<br>
-      All data stored locally on your device.<br>
-      <strong>Not a substitute for medical advice.</strong>
+      Equilibrium v1.0 · All data stays on your device
     </p>
   `;
 
@@ -1535,6 +1622,7 @@ document.addEventListener('click', e => {
       case 'emergency':   openPanel('panel-emergency', renderEmergencyPanel); break;
       case 'log-attack':  openPanel('panel-log-attack', ()=>renderLogAttackPanel(null)); break;
       case 'add-med':     openPanel('panel-add-med', renderAddMedPanel); break;
+      case 'about':       openPanel('panel-about', renderAboutPanel); break;
 
       case 'mood': {
         const m = e.target.closest('[data-mood]')?.dataset.mood;
