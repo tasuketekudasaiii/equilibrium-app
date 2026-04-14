@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="app.css?v=8">
+  <link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 <div id="app">
@@ -160,6 +160,19 @@
     <div class="panel-body" id="panel-about-body"></div>
   </div>
 
+  <!-- ── Tutorial overlay ─────────────────────── -->
+  <div id="tutorial-overlay" class="tutorial-overlay hidden">
+    <div class="tutorial-modal">
+      <button class="tut-skip-btn" id="btn-tut-skip">Skip tour</button>
+      <div class="tutorial-step" id="tutorial-step"></div>
+      <div class="tutorial-dots" id="tutorial-dots"></div>
+      <div class="tutorial-nav">
+        <button class="btn btn-ghost" id="btn-tut-prev">← Back</button>
+        <button class="btn btn-primary" id="btn-tut-next">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Calendar picker ──────────────────── -->
   <div id="cal-overlay" class="cal-overlay">
     <div class="cal-modal" id="cal-modal"></div>
@@ -173,6 +186,6 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- App logic -->
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

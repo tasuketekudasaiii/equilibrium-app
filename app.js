@@ -13,7 +13,7 @@ const K = {
   attacks:'eq_attacks', medications:'eq_meds', doses:'eq_doses',
   sodium:'eq_sodium', hydration:'eq_hydration', stress:'eq_stress',
   sleep:'eq_sleep', caff:'eq_caff', emergency:'eq_emergency', settings:'eq_settings',
-  activeAttack:'eq_active_attack',
+  activeAttack:'eq_active_attack', tutorialSeen:'eq_tutorial_seen',
 };
 
 const SYMPTOMS = [
@@ -88,6 +88,13 @@ function fmtDur(mins) {
 }
 function daysAgo(n) {
   const d = new Date(); d.setDate(d.getDate()-n);
+  return d.toISOString().split('T')[0];
+}
+function startOfWeek() {
+  const d = new Date();
+  const day = d.getDay(); // 0=Sun, 1=Mon…
+  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+  d.setDate(d.getDate() + diff);
   return d.toISOString().split('T')[0];
 }
 function prevDate(dateStr) {
@@ -253,7 +260,7 @@ function renderHome() {
   const stress  = DB.stressFor(t);
   const caff    = DB.caffFor(t);
   const allAtk  = DB.attacks();
-  const atk7    = allAtk.filter(a => a.date >= daysAgo(7)).length;
+  const atk7    = allAtk.filter(a => a.date >= startOfWeek()).length;
   const banner  = getBannerMsg(atk7, sodium, glasses);
   const dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   const sPct    = pct(sodium, sGoal);
@@ -882,11 +889,18 @@ function renderAboutPanel() {
       </p>
     </div>
 
-    <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);padding-bottom:var(--sp-md);line-height:1.7">
-      Made with care for the Ménière's community 🌊<br>
-      Open source · No ads · No tracking
-    </p>
+    <div style="text-align:center;margin-top:var(--sp-lg);padding-bottom:var(--sp-md)">
+      <button class="btn btn-outline" id="btn-view-tutorial" style="margin-bottom:var(--sp-md)">📖 View App Tutorial</button>
+      <p style="font-size:11px;color:var(--text-m);line-height:1.7">
+        Made with care for the Ménière's community 🌊<br>
+        Open source · No ads · No tracking
+      </p>
+    </div>
   `;
+  qs('#btn-view-tutorial').addEventListener('click', () => {
+    closePanel();
+    Tutorial.show();
+  });
 }
 
 function renderMore() {
@@ -1361,6 +1375,8 @@ function renderEmergencyPanel() {
 }
 
 // ── FOOD SEARCH PANEL ──────────────────────────────────────────────
+let _foodSearchTimer = null;
+
 function renderFoodSearch() {
   openPanel('panel-food-search', () => {
     qs('#food-search-input').value = '';
@@ -1369,62 +1385,138 @@ function renderFoodSearch() {
   });
 }
 
-function renderFoodResults(query) {
-  const el = qs('#food-search-results');
-  const q = query.toLowerCase();
-  const results = q.length === 0
-    ? FOOD_DB.slice(0, 30)
-    : FOOD_DB.filter(f => f.n.toLowerCase().includes(q));
-
-  if (!results.length) {
-    el.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">🔎</div>
-        <div class="empty-title">No results found</div>
-        <div class="empty-text">Try a different search term</div>
-      </div>
-      <div class="divider"></div>
-      <div style="padding:var(--sp-md) 0">
-        <div style="font-size:13px;font-weight:700;color:var(--text-m);margin-bottom:8px">Add custom food</div>
-        <div style="display:flex;gap:8px">
-          <input type="text" class="form-input" id="custom-food-name" placeholder="Food name" style="flex:2">
-          <input type="number" class="form-input" id="custom-food-sodium" placeholder="mg" style="flex:1">
-          <button class="btn btn-primary" id="btn-custom-food">Add</button>
-        </div>
-      </div>`;
-    setupCustomFood();
-    return;
-  }
-
-  el.innerHTML = results.map(f => `
-    <div class="food-item" data-action="add-food" data-food='${JSON.stringify({n:f.n,s:f.s,srv:f.srv||'1 serving',f:!!f.f})}'>
-      <div>
+function foodItemHTML(f, sourceLabel) {
+  const flagClass = f.s > 600 ? 'var(--danger)' : f.s > 300 ? 'var(--warning)' : 'var(--p)';
+  const data = JSON.stringify({n:f.n, s:f.s, srv:f.srv||'1 serving', f:!!f.f});
+  return `
+    <div class="food-item food-item-edit">
+      <div class="food-item-info">
         <div class="food-name">${f.n}</div>
-        <div class="food-serving">${f.srv}</div>
-        ${f.f ? '<div class="food-flag">⚠️ HIGH SODIUM — avoid</div>' : ''}
+        <div class="food-serving">${f.srv}${sourceLabel ? ` · <span style="color:var(--text-m);font-style:italic">${sourceLabel}</span>` : ''}</div>
+        ${f.f ? '<div class="food-flag">⚠️ HIGH SODIUM</div>' : ''}
       </div>
-      <div style="text-align:right">
-        <div class="food-sodium" style="color:${f.s>600?'var(--danger)':f.s>300?'var(--warning)':'var(--p)'}">${f.s}mg</div>
+      <div class="food-item-add">
+        <input type="number" class="form-input food-sodium-edit" value="${f.s}" min="0" max="9999" data-orig="${f.s}">
+        <span class="food-sodium-unit">mg</span>
+        <button class="btn btn-primary btn-sm food-add-btn" data-food='${data}'>Add</button>
       </div>
-    </div>`).join('') + `
-    <div class="divider"></div>
-    <div style="padding:var(--sp-md) 0">
-      <div style="font-size:13px;font-weight:700;color:var(--text-m);margin-bottom:8px">Not listed? Add custom food</div>
-      <div style="display:flex;gap:8px">
-        <input type="text" class="form-input" id="custom-food-name" placeholder="Food name" style="flex:2">
-        <input type="number" class="form-input" id="custom-food-sodium" placeholder="mg" style="flex:1">
+    </div>`;
+}
+
+function customFoodSection() {
+  return `
+    <div class="divider" style="margin:var(--sp-md) 0"></div>
+    <div style="padding-bottom:var(--sp-md)">
+      <div style="font-size:13px;font-weight:700;color:var(--text-m);margin-bottom:8px">Add custom food</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" class="form-input" id="custom-food-name" placeholder="Food name" style="flex:2;min-width:120px">
+        <input type="number" class="form-input" id="custom-food-sodium" placeholder="mg Na" style="flex:1;min-width:60px">
         <button class="btn btn-primary" id="btn-custom-food">Add</button>
       </div>
     </div>`;
+}
 
+function renderFoodResults(query) {
+  const el = qs('#food-search-results');
+  const q = query.toLowerCase().trim();
+  const localResults = q.length === 0
+    ? FOOD_DB.slice(0, 20)
+    : FOOD_DB.filter(f => f.n.toLowerCase().includes(q));
+
+  let html = '';
+  if (localResults.length > 0) {
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Common foods</div>`;
+    html += localResults.map(f => foodItemHTML(f, '')).join('');
+  }
+
+  if (q.length >= 2) {
+    html += `<div id="api-results-section">
+      <div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-md) 0 4px">Database results</div>
+      <div id="api-results-inner"><div class="food-loading">Searching…</div></div>
+    </div>`;
+  }
+
+  if (!localResults.length && q.length < 2) {
+    html += `<div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">Start typing to search</div></div>`;
+  }
+
+  html += customFoodSection();
+  el.innerHTML = html;
+  setupFoodAddButtons(el);
   setupCustomFood();
+
+  if (q.length >= 2) {
+    fetchFoodAPI(q);
+  }
+}
+
+async function fetchFoodAPI(query) {
+  const innerEl = qs('#api-results-inner');
+  if (!innerEl) return;
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&fields=product_name,nutriments,serving_size&page_size=8&lc=en`;
+    const resp = await fetch(url, {signal: AbortSignal.timeout(8000)});
+    const data = await resp.json();
+    const el = qs('#api-results-inner');
+    if (!el) return; // panel closed
+
+    const products = (data.products || []).filter(p => p.product_name && p.nutriments?.sodium_100g != null);
+    if (!products.length) {
+      el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">No database results found</div>';
+      return;
+    }
+
+    const items = products.map(p => {
+      const sodium100g = p.nutriments.sodium_100g; // grams per 100g
+      let sodiumMg = Math.round(sodium100g * 1000); // mg per 100g
+      let srv = '100g';
+      const servMatch = (p.serving_size || '').match(/(\d+\.?\d*)\s*g/i);
+      if (servMatch) {
+        const servG = parseFloat(servMatch[1]);
+        sodiumMg = Math.round(sodium100g * servG * 10);
+        srv = p.serving_size;
+      }
+      return {n: p.product_name, s: sodiumMg, srv, f: sodiumMg > 600};
+    });
+
+    el.innerHTML = items.map(f => foodItemHTML(f, 'Open Food Facts')).join('');
+    setupFoodAddButtons(el);
+  } catch {
+    const el = qs('#api-results-inner');
+    if (el) el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">Database unavailable — use common foods or custom entry</div>';
+  }
+}
+
+function setupFoodAddButtons(container) {
+  // Sync sodium edit inputs with their Add button data
+  container.querySelectorAll('.food-item-edit').forEach(item => {
+    const input = item.querySelector('.food-sodium-edit');
+    const btn   = item.querySelector('.food-add-btn');
+    if (!input || !btn) return;
+    input.addEventListener('input', () => {
+      try {
+        const food = JSON.parse(btn.dataset.food);
+        food.s = parseInt(input.value) || 0;
+        food.f = food.s > 600;
+        btn.dataset.food = JSON.stringify(food);
+      } catch {}
+    });
+    btn.addEventListener('click', () => {
+      try {
+        const food = JSON.parse(btn.dataset.food);
+        food.s = parseInt(input.value) || 0;
+        food.f = food.s > 600;
+        addFoodToLog(food);
+      } catch {}
+    });
+  });
 }
 
 function setupCustomFood() {
   const btn = qs('#btn-custom-food');
   if (!btn) return;
   btn.addEventListener('click', () => {
-    const name = qs('#custom-food-name').value.trim();
+    const name   = qs('#custom-food-name').value.trim();
     const sodium = parseInt(qs('#custom-food-sodium').value);
     if (!name || isNaN(sodium)) { showToast('Enter a name and sodium amount'); return; }
     addFoodToLog({n:name, s:sodium, srv:'1 serving', f: sodium > 600});
@@ -1687,11 +1779,7 @@ document.addEventListener('click', e => {
         }
         break;
       }
-      case 'add-food': {
-        const food = JSON.parse(e.target.closest('[data-food]').dataset.food);
-        addFoodToLog(food);
-        break;
-      }
+
     }
     return;
   }
@@ -1740,9 +1828,12 @@ document.getElementById('btn-theme').addEventListener('click', () => {
   qs('#btn-theme').textContent = s.dark ? '☀️' : '🌙';
 });
 
-// Food search live
+// Food search live (debounce API calls, local results instant)
 document.addEventListener('input', e => {
-  if (e.target.id === 'food-search-input') renderFoodResults(e.target.value);
+  if (e.target.id === 'food-search-input') {
+    clearTimeout(_foodSearchTimer);
+    _foodSearchTimer = setTimeout(() => renderFoodResults(e.target.value), 400);
+  }
   if (e.target.id === 'intensity-slider') {
     const v = qs('#intensity-val'); if (v) v.textContent = e.target.value;
   }
@@ -1788,6 +1879,96 @@ document.addEventListener('submit', e => {
   }
 });
 
+// ── TUTORIAL ──────────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  {
+    icon: '🌊',
+    title: 'Welcome to Equilibrium',
+    body: 'Your personal companion for managing Ménière\'s disease. This quick tour shows you how to get the most out of the app.',
+  },
+  {
+    icon: '🏠',
+    title: 'Your Daily Dashboard',
+    body: 'The <strong>Home</strong> tab shows today\'s sodium, hydration, attacks this week, and stress level. Use the ← → arrows to review past days.',
+  },
+  {
+    icon: '⚡',
+    title: 'Log Attacks',
+    body: 'On the <strong>Symptoms</strong> tab, tap the attack button to open the log form instantly. Record intensity (1–10), duration, and which symptoms you experienced.',
+  },
+  {
+    icon: '🧂',
+    title: 'Track Your Sodium',
+    body: 'The <strong>Diet</strong> tab lets you search foods and log sodium. Type any food name — the app suggests amounts from a database you can always edit before adding.',
+  },
+  {
+    icon: '🌿',
+    title: 'Daily Wellness Check-In',
+    body: 'On the <strong>Wellness</strong> tab, log your stress level, mood, sleep, and trigger beverages like caffeine and alcohol every day.',
+  },
+  {
+    icon: '☰',
+    title: 'More Tools',
+    body: 'The <strong>More</strong> tab has Medications, Trigger Insights, a Doctor Report you can copy for appointments, an Emergency Card, and Settings.',
+  },
+];
+
+const Tutorial = {
+  current: 0,
+
+  show() {
+    this.current = 0;
+    qs('#tutorial-overlay').classList.remove('hidden');
+    this.render();
+  },
+
+  hide() {
+    qs('#tutorial-overlay').classList.add('hidden');
+  },
+
+  markSeen() {
+    localStorage.setItem(K.tutorialSeen, '1');
+    this.hide();
+  },
+
+  render() {
+    const step  = TUTORIAL_STEPS[this.current];
+    const total = TUTORIAL_STEPS.length;
+    const isLast = this.current === total - 1;
+
+    qs('#tutorial-step').innerHTML = `
+      <div class="tut-icon">${step.icon}</div>
+      <div class="tut-title">${step.title}</div>
+      <div class="tut-body">${step.body}</div>
+    `;
+
+    // Dots
+    qs('#tutorial-dots').innerHTML = TUTORIAL_STEPS.map((_, i) =>
+      `<div class="tut-dot${i === this.current ? ' active' : ''}"></div>`
+    ).join('');
+
+    // Buttons
+    qs('#btn-tut-prev').style.visibility = this.current > 0 ? 'visible' : 'hidden';
+    qs('#btn-tut-next').textContent = isLast ? "Let's go! 🌊" : 'Next →';
+  },
+};
+
+// Tutorial button wiring (runs once after DOM ready)
+function initTutorial() {
+  qs('#btn-tut-skip').addEventListener('click', () => Tutorial.markSeen());
+  qs('#btn-tut-next').addEventListener('click', () => {
+    if (Tutorial.current < TUTORIAL_STEPS.length - 1) {
+      Tutorial.current++;
+      Tutorial.render();
+    } else {
+      Tutorial.markSeen();
+    }
+  });
+  qs('#btn-tut-prev').addEventListener('click', () => {
+    if (Tutorial.current > 0) { Tutorial.current--; Tutorial.render(); }
+  });
+}
+
 // ── INIT ──────────────────────────────────────────────────────────
 function init() {
   // Restore active attack from storage (page reload resilience)
@@ -1806,8 +1987,16 @@ function init() {
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 
+  // Wire tutorial buttons
+  initTutorial();
+
   // Initial render
   switchTab('home');
+
+  // Show tutorial on first launch
+  if (!localStorage.getItem(K.tutorialSeen)) {
+    setTimeout(() => Tutorial.show(), 400);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
