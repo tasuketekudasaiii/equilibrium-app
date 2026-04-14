@@ -851,7 +851,7 @@ function renderAboutPanel() {
       <div style="display:flex;flex-direction:column;gap:10px">
         ${[
           ['⚡','Attacks & Symptoms','Log vertigo episodes with intensity, duration, and symptoms experienced'],
-          ['🧂','Sodium Intake','Monitor daily sodium against your personal target'],
+          ['🧂','Sodium Intake','Search 1M+ foods powered by the USDA FoodData Central database, then monitor daily sodium against your personal target'],
           ['💧','Hydration','Count daily water glasses toward your hydration goal'],
           ['😌','Stress & Mood','Journal your stress level and emotional state each day'],
           ['😴','Sleep','Track nightly sleep hours and quality'],
@@ -876,6 +876,11 @@ function renderAboutPanel() {
         All your health data is stored <strong>only on this device</strong> using your browser's
         local storage. Nothing is ever sent to a server, shared with third parties, or backed up
         to the cloud. If you clear your browser data, your Equilibrium data will be deleted.
+      </p>
+      <p style="font-size:14px;line-height:1.65;color:var(--text-m);margin-top:var(--sp-sm)">
+        The only external connection made is when you search for food — search terms are sent to the
+        <strong>USDA FoodData Central API</strong> to retrieve nutritional data. No personal health
+        information is ever included in these requests.
       </p>
     </div>
 
@@ -1450,40 +1455,54 @@ function renderFoodResults(query) {
   }
 }
 
+const USDA_KEY = '8Au8ObeS6w8wz5GIWyh3GTPpyIOvhb3SqHZgWhY9';
+
 async function fetchFoodAPI(query) {
   const innerEl = qs('#api-results-inner');
   if (!innerEl) return;
   try {
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&fields=product_name,nutriments,serving_size&page_size=8&lc=en`;
-    const resp = await fetch(url, {signal: AbortSignal.timeout(8000)});
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&api_key=${USDA_KEY}&pageSize=10&dataType=Foundation,SR%20Legacy,Branded`;
+    const resp = await fetch(url, {signal: AbortSignal.timeout(10000)});
     const data = await resp.json();
     const el = qs('#api-results-inner');
     if (!el) return; // panel closed
 
-    const products = (data.products || []).filter(p => p.product_name && p.nutriments?.sodium_100g != null);
-    if (!products.length) {
-      el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">No database results found</div>';
+    const foods = (data.foods || []).filter(f => {
+      const sod = f.foodNutrients?.find(n => n.nutrientId === 1093 || n.nutrientNumber === '307' || (n.nutrientName||'').toLowerCase().includes('sodium'));
+      return f.description && sod != null;
+    });
+
+    if (!foods.length) {
+      el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">No results in USDA database — try a different term or use custom entry below</div>';
       return;
     }
 
-    const items = products.map(p => {
-      const sodium100g = p.nutriments.sodium_100g; // grams per 100g
-      let sodiumMg = Math.round(sodium100g * 1000); // mg per 100g
+    const items = foods.map(f => {
+      const sodNut = f.foodNutrients.find(n => n.nutrientId === 1093 || n.nutrientNumber === '307' || (n.nutrientName||'').toLowerCase().includes('sodium'));
+      const sodPer100 = sodNut?.value || 0; // mg per 100g
+
+      let sodiumMg = Math.round(sodPer100);
       let srv = '100g';
-      const servMatch = (p.serving_size || '').match(/(\d+\.?\d*)\s*g/i);
-      if (servMatch) {
-        const servG = parseFloat(servMatch[1]);
-        sodiumMg = Math.round(sodium100g * servG * 10);
-        srv = p.serving_size;
+      if (f.servingSize && /^g$/i.test(f.servingSizeUnit || '')) {
+        sodiumMg = Math.round((sodPer100 / 100) * f.servingSize);
+        srv = f.householdServingFullText || `${f.servingSize}g`;
+      } else if (f.householdServingFullText) {
+        srv = f.householdServingFullText;
       }
-      return {n: p.product_name, s: sodiumMg, srv, f: sodiumMg > 600};
+
+      // Tidy up USDA's ALL-CAPS verbose descriptions
+      let name = f.description;
+      name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+      if (name.length > 58) name = name.slice(0, 55) + '…';
+
+      return {n: name, s: sodiumMg, srv, f: sodiumMg > 600};
     });
 
-    el.innerHTML = items.map(f => foodItemHTML(f, 'Open Food Facts')).join('');
+    el.innerHTML = items.map(f => foodItemHTML(f, 'USDA')).join('');
     setupFoodAddButtons(el);
   } catch {
     const el = qs('#api-results-inner');
-    if (el) el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">Database unavailable — use common foods or custom entry</div>';
+    if (el) el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">USDA database unavailable — use common foods or custom entry below</div>';
   }
 }
 
@@ -1899,7 +1918,7 @@ const TUTORIAL_STEPS = [
   {
     icon: '🧂',
     title: 'Track Your Sodium',
-    body: 'The <strong>Diet</strong> tab lets you search foods and log sodium. Type any food name — the app suggests amounts from a database you can always edit before adding.',
+    body: 'The <strong>Diet</strong> tab lets you search foods and log sodium. Type any food name — results come from the <strong>USDA FoodData Central</strong> database (1M+ foods) and you can always edit the sodium amount before adding.',
   },
   {
     icon: '🌿',
