@@ -1617,7 +1617,7 @@ function openPrintReport() {
 </head>
 <body>
 
-<button class="no-print" onclick="window.close()" style="position:fixed;top:16px;right:16px;z-index:9999;background:white;border:2px solid #D4E4DF;border-radius:50px;padding:9px 18px;font-size:14px;font-weight:700;color:#6B8A83;cursor:pointer;box-shadow:0 2px 16px rgba(0,0,0,0.12);-webkit-tap-highlight-color:transparent">✕ Close</button>
+<button class="no-print" onclick="window.close()" style="position:fixed;top:16px;right:16px;z-index:9999;background:#5B9B8A;border:none;border-radius:50px;padding:14px 26px;font-size:17px;font-weight:700;color:white;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.25);-webkit-tap-highlight-color:transparent;min-width:100px;text-align:center">✕ Close</button>
 
 <div class="no-print" style="margin-bottom:24px">
   <button class="print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
