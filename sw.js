@@ -1,4 +1,4 @@
-const CACHE = 'equilibrium-v5';
+const CACHE = 'equilibrium-v6';
 const STATIC = [
   './index.html',
   './app.css',
@@ -28,6 +28,19 @@ self.addEventListener('activate', e => {
         keys.filter(k => k !== CACHE).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim()) // take control without reload
+  );
+});
+
+// Notification click: focus or open the app
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({type:'window', includeUncontrolled:true}).then(list => {
+      for (const c of list) {
+        if (c.url && 'focus' in c) return c.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('./');
+    })
   );
 });
 

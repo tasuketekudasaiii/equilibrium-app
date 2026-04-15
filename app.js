@@ -14,6 +14,10 @@ const K = {
   sodium:'eq_sodium', hydration:'eq_hydration', stress:'eq_stress',
   sleep:'eq_sleep', caff:'eq_caff', emergency:'eq_emergency', settings:'eq_settings',
   activeAttack:'eq_active_attack', tutorialSeen:'eq_tutorial_seen',
+  badges:'eq_badges',
+  notifLast:'eq_notif_last',
+  weeklySummaryShown:'eq_week_summary',
+  pressure:'eq_pressure',
 };
 
 const SYMPTOMS = [
@@ -250,6 +254,106 @@ function getBannerMsg(attacks7, sodium, glasses) {
   return {icon:'💙', title:"You're doing great", msg:"Every day you track is a day you're taking care of yourself. Keep going."};
 }
 
+// ── STREAKS & BADGES ──────────────────────────────────────────────
+function hasDataForDate(d) {
+  if (DB.attacks().some(a => a.date === d)) return true;
+  if ((DB.sodiumFor(d).items || []).length > 0) return true;
+  if (DB.stressFor(d)) return true;
+  if (DB.sleepFor(d)) return true;
+  if (DB.hydFor(d) > 0) return true;
+  const caff = DB.caffFor(d);
+  if (caff.c > 0 || caff.a > 0) return true;
+  return false;
+}
+
+function getLoggingStreak() {
+  let streak = 0;
+  let d = today();
+  while (hasDataForDate(d)) {
+    streak++;
+    const prev = new Date(d + 'T12:00:00');
+    prev.setDate(prev.getDate() - 1);
+    d = prev.toISOString().split('T')[0];
+    if (streak > 365) break;
+  }
+  return streak;
+}
+
+function getSodiumStreak() {
+  const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
+  let streak = 0;
+  let d = today();
+  while (true) {
+    const s = DB.totalSodium(d);
+    const hasItems = (DB.sodiumFor(d).items || []).length > 0;
+    if (!hasItems) break; // no data logged, streak ends
+    if (s >= sGoal) break; // over goal, streak ends
+    streak++;
+    const prev = new Date(d + 'T12:00:00');
+    prev.setDate(prev.getDate() - 1);
+    d = prev.toISOString().split('T')[0];
+    if (streak > 365) break;
+  }
+  return streak;
+}
+
+function getEarnedBadges() {
+  const badges = [];
+  const logStreak = getLoggingStreak();
+  const sodStreak = getSodiumStreak();
+  const attacks = DB.attacks();
+  const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
+  const anyData = hasDataForDate(today()) || attacks.length > 0;
+
+  if (anyData) badges.push({emoji:'📝', label:'First Log'});
+  if (logStreak >= 3) badges.push({emoji:'🔥', label:'3-Day Streak'});
+  if (logStreak >= 7) badges.push({emoji:'💪', label:'Week Warrior'});
+  if (logStreak >= 30) badges.push({emoji:'🏆', label:'Month Strong'});
+  if (sodStreak >= 7) badges.push({emoji:'🧂', label:'Low Sodium Week'});
+
+  // Attack free last 7 days
+  const week = daysAgo(7);
+  const recentAttacks = attacks.filter(a => a.date >= week);
+  if (attacks.length > 0 && recentAttacks.length === 0) badges.push({emoji:'✨', label:'Attack Free Week'});
+
+  // Hydration hero: met goal 5 of last 7 days
+  const hGoal = DB.settings().hydGoal || HYDRATION_GOAL;
+  let hydDays = 0;
+  for (let i = 0; i < 7; i++) {
+    if (DB.hydFor(daysAgo(i)) >= hGoal) hydDays++;
+  }
+  if (hydDays >= 5) badges.push({emoji:'💧', label:'Hydration Hero'});
+
+  return badges;
+}
+
+function renderStreaksCardHTML() {
+  const logStreak = getLoggingStreak();
+  const sodStreak = getSodiumStreak();
+  const badges = getEarnedBadges();
+  const logIcon = logStreak >= 3 ? '🔥' : logStreak === 0 ? '❄️' : '📆';
+  const sodIcon = sodStreak >= 3 ? '🔥' : sodStreak === 0 ? '❄️' : '🧂';
+
+  return `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-md)">Streaks</div>
+      <div class="streak-row">
+        <div class="streak-item">
+          <div class="streak-num">${logIcon} ${logStreak}</div>
+          <div class="streak-lbl">Logging streak</div>
+        </div>
+        <div class="streak-item">
+          <div class="streak-num">${sodIcon} ${sodStreak}</div>
+          <div class="streak-lbl">Low-sodium streak</div>
+        </div>
+      </div>
+      ${badges.length > 0 ? `
+      <div class="badge-strip">
+        ${badges.map(b=>`<span class="badge-pill">${b.emoji} ${b.label}</span>`).join('')}
+      </div>` : ''}
+    </div>`;
+}
+
 // ── HOME VIEW ─────────────────────────────────────────────────────
 function renderHome() {
   const t       = S.viewDate;
@@ -336,6 +440,8 @@ function renderHome() {
         <button class="btn btn-outline btn-qa" data-action="emergency">🚨 Emergency Card</button>
       </div>
     </div>
+
+    ${renderStreaksCardHTML()}
 
     ${allAtk.length > 0 ? `
     <div class="card">
@@ -454,6 +560,8 @@ function renderSymptoms() {
         <div class="empty-title">No attacks logged yet</div>
         <div class="empty-text">When you have a vertigo episode, tap the button above to log it. Tracking helps you find your triggers.</div>
       </div>`}
+
+    ${renderHeatMapHTML()}
   `;
 
   if (active) startAttackClock();
@@ -519,6 +627,52 @@ function renderAttackChart() {
   });
 }
 
+// ── HEAT MAP ─────────────────────────────────────────────────────
+function renderHeatMapHTML() {
+  const allAttacks = DB.attacks();
+  // Build a map of date -> attack count
+  const countMap = {};
+  allAttacks.forEach(a => {
+    countMap[a.date] = (countMap[a.date] || 0) + 1;
+  });
+
+  const now = new Date();
+  let html = '<div class="card"><div class="card-title" style="margin-bottom:var(--sp-md)">📅 6-Month Attack Heat Map</div>';
+
+  for (let mo = 5; mo >= 0; mo--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - mo, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthLabel = d.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+    // Day of week for first day (0=Sun). Heat map uses Mon–Sun (offset)
+    const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+    const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Mon=0 offset
+
+    html += `<div class="heat-month-label">${monthLabel}</div>`;
+    html += '<div class="heat-grid">';
+    // Empty cells for offset
+    for (let i = 0; i < startOffset; i++) {
+      html += '<div class="heat-cell heat-empty"></div>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const cnt = countMap[dateStr] || 0;
+      let cls = 'heat-cell';
+      if (cnt === 0) cls += ' heat-none';
+      else if (cnt === 1) cls += ' heat-1';
+      else if (cnt === 2) cls += ' heat-2';
+      else cls += ' heat-3';
+      html += `<div class="${cls}" data-heat-date="${dateStr}" title="${dateStr}: ${cnt} attack${cnt!==1?'s':''}"></div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '<div class="heat-legend"><span><span class="heat-swatch heat-none"></span>0</span><span><span class="heat-swatch heat-1"></span>1</span><span><span class="heat-swatch heat-2"></span>2</span><span><span class="heat-swatch heat-3"></span>3+</span></div>';
+  html += '</div>';
+  return html;
+}
+
 // Log past attack panel
 function renderLogAttackPanel(prefillStart) {
   const bodyEl = qs('#panel-log-attack-body');
@@ -575,6 +729,16 @@ function renderLogAttackPanel(prefillStart) {
       <div class="form-group">
         <label class="form-label">Notes (optional)</label>
         <textarea class="form-input" name="notes" placeholder="What were you doing? Any possible triggers?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Medications today</label>
+        <div class="toggle-row">
+          <span class="toggle-label">I took my scheduled medications today</span>
+          <label class="toggle">
+            <input type="checkbox" name="medsTaken" id="chk-meds-taken">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
       </div>
     </form>
   `;
@@ -747,6 +911,11 @@ function renderWellness() {
       <button class="btn btn-primary btn-full" id="btn-save-sleep" style="margin-top:4px">Save Sleep Log</button>
     </div>
 
+    <!-- Barometric Pressure -->
+    <div class="card" id="pressure-card">
+      <div style="font-size:13px;color:var(--text-m)">Loading pressure data…</div>
+    </div>
+
     <!-- Stress trend -->
     <div class="card">
       <div class="card-title" style="margin-bottom:8px">Stress Trend (14 days)</div>
@@ -794,6 +963,104 @@ function renderWellness() {
   });
 
   setTimeout(() => renderStressChart(), 50);
+  renderPressureCard();
+}
+
+// ── BAROMETRIC PRESSURE ──────────────────────────────────────────
+async function renderPressureCard() {
+  const el = qs('#pressure-card');
+  if (!el) return;
+
+  el.innerHTML = `<div class="card-title" style="margin-bottom:8px">🌡️ Barometric Pressure</div><div style="font-size:13px;color:var(--text-m)">Fetching current pressure…</div>`;
+
+  const pressureLog = DB.g(K.pressure) || [];
+  const todayStr = today();
+
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {timeout:8000})
+    );
+    const {latitude: lat, longitude: lon} = pos.coords;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=pressure_msl&timezone=auto`;
+    const resp = await fetch(url, {signal: AbortSignal.timeout(10000)});
+    const data = await resp.json();
+    const hpa = Math.round(data.current?.pressure_msl || 0);
+
+    if (hpa > 0) {
+      // Store reading (one per day)
+      const idx = pressureLog.findIndex(p => p.date === todayStr);
+      const entry = {date: todayStr, hpa, time: nowISO()};
+      if (idx >= 0) pressureLog[idx] = entry;
+      else pressureLog.push(entry);
+      // Keep last 30 days
+      while (pressureLog.length > 30) pressureLog.shift();
+      DB.s(K.pressure, pressureLog);
+    }
+  } catch (_) { /* geolocation or network failed — just show stored data */ }
+
+  // Render with stored data
+  const stored = DB.g(K.pressure) || [];
+  const current = stored.find(p => p.date === todayStr) || stored[stored.length - 1];
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = daysAgo(i);
+    const p = stored.find(x => x.date === d);
+    last7.push(p ? p.hpa : null);
+  }
+
+  if (!current) {
+    el.innerHTML = `<div class="card-title" style="margin-bottom:8px">🌡️ Barometric Pressure</div>
+      <div style="font-size:13px;color:var(--text-m)">Unable to fetch pressure. Allow location access to enable this feature.</div>`;
+    return;
+  }
+
+  const hpa = current.hpa;
+  const status = hpa < 1010 ? {icon:'⚠️', label:'Low pressure — possible trigger', color:'var(--warning)'}
+    : hpa > 1020 ? {icon:'✅', label:'High pressure — generally stable', color:'var(--success)'}
+    : {icon:'🟢', label:'Normal pressure', color:'var(--text-m)'};
+
+  el.innerHTML = `
+    <div class="card-title" style="margin-bottom:8px">🌡️ Barometric Pressure</div>
+    <div style="display:flex;align-items:center;gap:var(--sp-md);margin-bottom:var(--sp-sm)">
+      <div style="font-size:32px;font-weight:800;color:var(--p)">${hpa}<span style="font-size:14px;font-weight:600"> hPa</span></div>
+      <div style="font-size:13px;color:${status.color}">${status.icon} ${status.label}</div>
+    </div>
+    <div style="font-size:11px;color:var(--text-m);margin-bottom:var(--sp-sm)">7-day trend</div>
+    <canvas id="pressure-sparkline" height="40"></canvas>
+  `;
+
+  // Draw sparkline
+  const canvas = qs('#pressure-sparkline');
+  if (canvas) {
+    const valid = last7.filter(v => v !== null);
+    const minV = valid.length ? Math.min(...valid) - 5 : 1000;
+    const maxV = valid.length ? Math.max(...valid) + 5 : 1030;
+    canvas.width = canvas.offsetWidth || 300;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = 40;
+    const points = last7.map((v, i) => ({
+      x: (i / 6) * (w - 20) + 10,
+      y: v !== null ? h - ((v - minV) / (maxV - minV)) * (h - 8) - 4 : null
+    }));
+    ctx.strokeStyle = '#5B9B8A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    points.forEach(p => {
+      if (p.y === null) { started = false; return; }
+      if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+    // Dots
+    points.forEach(p => {
+      if (p.y === null) return;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#5B9B8A';
+      ctx.fill();
+    });
+  }
 }
 
 function renderStressChart() {
@@ -939,6 +1206,15 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
+    <div class="more-item" data-action="export">
+      <div class="more-icon" style="background:#EEF0FF">📤</div>
+      <div class="more-content">
+        <div class="more-title">Export Data</div>
+        <div class="more-sub">Download your health data as CSV</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
     <div class="more-item" data-action="emergency">
       <div class="more-icon" style="background:#FDEAEA">🚨</div>
       <div class="more-content">
@@ -970,6 +1246,31 @@ function renderMore() {
           <span class="toggle-track"></span>
         </label>
       </div>
+
+      <div class="divider" style="margin:var(--sp-md) 0"></div>
+      <div class="card-title" style="margin-bottom:var(--sp-md);font-size:14px">🔔 Reminders</div>
+      <div class="toggle-row" style="margin-bottom:var(--sp-sm)">
+        <span class="toggle-label">Enable notifications</span>
+        <label class="toggle">
+          <input type="checkbox" id="set-notif" ${DB.settings().notifEnabled?'checked':''}>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div id="notif-times" style="display:${DB.settings().notifEnabled?'block':'none'}">
+        <div class="form-group">
+          <label class="form-label">Morning check-in</label>
+          <input type="time" class="form-input" id="set-notif-morning" value="${DB.settings().notifMorning||'08:00'}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Medication reminder</label>
+          <input type="time" class="form-input" id="set-notif-med" value="${DB.settings().notifMed||'09:00'}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Evening log</label>
+          <input type="time" class="form-input" id="set-notif-evening" value="${DB.settings().notifEvening||'20:00'}">
+        </div>
+      </div>
+
       <button class="btn btn-primary btn-full" id="btn-save-settings" style="margin-top:var(--sp-sm)">Save Settings</button>
     </div>
 
@@ -978,10 +1279,24 @@ function renderMore() {
     </p>
   `;
 
-  qs('#btn-save-settings').addEventListener('click', () => {
+  qs('#btn-save-settings').addEventListener('click', async () => {
     const s = DB.settings();
     s.sodiumGoal = +qs('#set-sodium').value || 1500;
     s.dark = qs('#set-dark').checked;
+    const notifWanted = qs('#set-notif').checked;
+    if (notifWanted && !s.notifEnabled) {
+      // Request permission
+      if ('Notification' in window) {
+        const perm = await Notification.requestPermission();
+        s.notifEnabled = perm === 'granted';
+        if (perm !== 'granted') showToast('Notification permission denied');
+      }
+    } else {
+      s.notifEnabled = notifWanted;
+    }
+    s.notifMorning = qs('#set-notif-morning')?.value || '08:00';
+    s.notifMed     = qs('#set-notif-med')?.value || '09:00';
+    s.notifEvening = qs('#set-notif-evening')?.value || '20:00';
     DB.saveSettings(s);
     applyTheme(s.dark);
     showToast('Settings saved');
@@ -989,6 +1304,11 @@ function renderMore() {
 
   qs('#set-dark').addEventListener('change', function() {
     applyTheme(this.checked);
+  });
+
+  qs('#set-notif').addEventListener('change', function() {
+    const el = qs('#notif-times');
+    if (el) el.style.display = this.checked ? 'block' : 'none';
   });
 }
 
@@ -1173,6 +1493,24 @@ function renderTriggersPanel() {
     <p style="font-size:12px;color:var(--text-m);margin-top:var(--sp-md);line-height:1.6">
       Trigger correlation shows how often a factor was present the day before an attack. Factors with 30%+ are likely meaningful triggers for you.
     </p>
+
+    ${(() => {
+      const medAttacks = attacks.filter(a => a.medsTaken !== undefined);
+      if (medAttacks.length < 3) return '';
+      const taken = medAttacks.filter(a => a.medsTaken);
+      const skipped = medAttacks.filter(a => !a.medsTaken);
+      const takenPct = Math.round(taken.length / medAttacks.length * 100);
+      const skippedPct = 100 - takenPct;
+      return `
+        <div style="margin-top:var(--sp-lg)">
+          <div style="font-size:12px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:var(--sp-md)">💊 Medication Adherence</div>
+          <div class="card">
+            <div style="margin-bottom:8px;font-size:14px"><strong>${taken.length}</strong> attacks when meds were taken (${takenPct}%)</div>
+            <div style="font-size:14px"><strong>${skipped.length}</strong> attacks when meds were skipped (${skippedPct}%)</div>
+            ${skipped.length > taken.length ? '<div style="font-size:12px;color:var(--warning);margin-top:8px">⚠️ You seem to have more attacks when skipping medications</div>' : ''}
+          </div>
+        </div>`;
+    })()}
   `;
 
   setTimeout(() => {
@@ -1381,12 +1719,25 @@ function renderEmergencyPanel() {
 
 // ── FOOD SEARCH PANEL ──────────────────────────────────────────────
 let _foodSearchTimer = null;
+let _scanStream = null;
+let _scanInterval = null;
 
 function renderFoodSearch() {
   openPanel('panel-food-search', () => {
     qs('#food-search-input').value = '';
     renderFoodResults('');
     qs('#food-search-input').focus();
+    // Add scan button next to input if not already there
+    const inp = qs('#food-search-input');
+    if (inp && !qs('#btn-scan-barcode')) {
+      const btn = document.createElement('button');
+      btn.id = 'btn-scan-barcode';
+      btn.className = 'btn btn-ghost btn-sm';
+      btn.textContent = '📷';
+      btn.style.cssText = 'margin-top:6px;width:100%';
+      btn.addEventListener('click', startScanner);
+      inp.parentNode.appendChild(btn);
+    }
   });
 }
 
@@ -1503,6 +1854,69 @@ async function fetchFoodAPI(query) {
   } catch {
     const el = qs('#api-results-inner');
     if (el) el.innerHTML = '<div style="font-size:13px;color:var(--text-m);padding:8px 0">USDA database unavailable — use common foods or custom entry below</div>';
+  }
+}
+
+// ── BARCODE SCANNER ──────────────────────────────────────────────
+function stopScanner() {
+  if (_scanInterval) { clearInterval(_scanInterval); _scanInterval = null; }
+  if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
+  const cont = qs('#scanner-container');
+  if (cont) cont.classList.add('hidden');
+}
+
+async function startScanner() {
+  if (!('BarcodeDetector' in window)) {
+    showToast('Barcode scanning not supported on this device');
+    return;
+  }
+  try {
+    _scanStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+    const video = qs('#scanner-video');
+    if (!video) return;
+    video.srcObject = _scanStream;
+    video.play();
+    qs('#scanner-container').classList.remove('hidden');
+
+    const detector = new BarcodeDetector({formats: ['ean_13','ean_8','upc_a','upc_e']});
+    _scanInterval = setInterval(async () => {
+      if (!video.videoWidth) return;
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length > 0) {
+          const barcode = codes[0].rawValue;
+          stopScanner();
+          showToast('Barcode found — looking up product…');
+          // Look up in Open Food Facts
+          try {
+            const resp = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {signal: AbortSignal.timeout(10000)});
+            const data = await resp.json();
+            if (data.status === 1 && data.product) {
+              const p = data.product;
+              const name = p.product_name || 'Unknown product';
+              const sodiumPer100 = (p.nutriments?.sodium_100g || 0) * 1000; // g/100g -> mg/100g
+              const servingG = parseFloat(p.serving_size) || 100;
+              const sodium = Math.round(sodiumPer100 / 100 * servingG);
+              const srv = p.serving_size || '100g';
+              const food = {n: name.charAt(0).toUpperCase() + name.slice(1).slice(0,55), s: sodium, srv, f: sodium > 600};
+              const resultsEl = qs('#food-search-results');
+              if (resultsEl) {
+                const section = document.createElement('div');
+                section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Scanned product</div>${foodItemHTML(food, 'Barcode')}`;
+                resultsEl.prepend(section);
+                setupFoodAddButtons(section);
+              }
+            } else {
+              showToast('Product not found in database');
+            }
+          } catch {
+            showToast('Could not look up product');
+          }
+        }
+      } catch (_) {}
+    }, 500);
+  } catch (err) {
+    showToast('Camera access denied or unavailable');
   }
 }
 
@@ -1698,6 +2112,167 @@ function applyTheme(dark) {
   qs('#meta-theme').content = dark ? '#1A2E29' : '#5B9B8A';
 }
 
+// ── EXPORT TO CSV ───────────────────────────────────────────────
+function downloadFile(filename, content, type='text/csv') {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderExportPanel() {
+  const el = qs('#panel-export-body');
+  el.innerHTML = `
+    <div style="margin-bottom:var(--sp-md)">
+      <p style="font-size:14px;color:var(--text-m);line-height:1.6;margin-bottom:var(--sp-lg)">Download your health data as CSV files for use in spreadsheets or to share with your doctor.</p>
+
+      <div class="list-item" style="cursor:pointer" id="exp-attacks">
+        <div class="list-icon">⚡</div>
+        <div class="list-content">
+          <div class="list-title">Attacks CSV</div>
+          <div class="list-sub">Date, time, duration, intensity, symptoms, notes, meds</div>
+        </div>
+        <div class="more-arrow">↓</div>
+      </div>
+
+      <div class="list-item" style="cursor:pointer" id="exp-food">
+        <div class="list-icon">🧂</div>
+        <div class="list-content">
+          <div class="list-title">Food Log CSV</div>
+          <div class="list-sub">Date, food name, serving, sodium mg</div>
+        </div>
+        <div class="more-arrow">↓</div>
+      </div>
+
+      <div class="list-item" style="cursor:pointer" id="exp-wellness">
+        <div class="list-icon">🌿</div>
+        <div class="list-content">
+          <div class="list-title">Wellness CSV</div>
+          <div class="list-sub">Date, stress, mood, sleep hours, quality, caffeine, alcohol, pressure</div>
+        </div>
+        <div class="more-arrow">↓</div>
+      </div>
+
+      <div class="list-item" style="cursor:pointer" id="exp-json">
+        <div class="list-icon">📦</div>
+        <div class="list-content">
+          <div class="list-title">All Data (JSON)</div>
+          <div class="list-sub">Full backup of all Equilibrium data</div>
+        </div>
+        <div class="more-arrow">↓</div>
+      </div>
+    </div>
+  `;
+
+  qs('#exp-attacks').addEventListener('click', () => {
+    const attacks = DB.attacks();
+    if (!attacks.length) { showToast('No attack data to export'); return; }
+    const rows = [['date','time','duration_min','intensity','symptoms','notes','medsTaken']];
+    attacks.forEach(a => rows.push([
+      a.date,
+      a.startTime ? fmtTime(a.startTime) : '',
+      a.duration || 0,
+      a.intensity || '',
+      (a.symptoms||[]).join(';'),
+      (a.notes||'').replace(/,/g,' '),
+      a.medsTaken !== undefined ? (a.medsTaken ? 'yes' : 'no') : '',
+    ]));
+    downloadFile(`equilibrium-attacks-${today()}.csv`, rows.map(r=>r.join(',')).join('\n'));
+    showToast('Attacks exported!');
+  });
+
+  qs('#exp-food').addEventListener('click', () => {
+    const log = DB.sodiumLog();
+    const rows = [['date','food_name','serving','sodium_mg']];
+    Object.keys(log).sort().forEach(date => {
+      (log[date]?.items || []).forEach(i => rows.push([
+        date,
+        (i.n||'').replace(/,/g,' '),
+        (i.srv||'').replace(/,/g,' '),
+        i.s || 0,
+      ]));
+    });
+    if (rows.length <= 1) { showToast('No food data to export'); return; }
+    downloadFile(`equilibrium-food-${today()}.csv`, rows.map(r=>r.join(',')).join('\n'));
+    showToast('Food log exported!');
+  });
+
+  qs('#exp-wellness').addEventListener('click', () => {
+    const rows = [['date','stress_level','mood','sleep_hours','sleep_quality','caffeine','alcohol','pressure_hpa']];
+    const pressureLog = DB.g(K.pressure) || [];
+    const pressureMap = {};
+    pressureLog.forEach(p => { pressureMap[p.date] = p.hpa; });
+    // gather all dates with any wellness data
+    const dates = new Set();
+    const stressAll = DB.g(K.stress) || {};
+    const sleepAll  = DB.g(K.sleep) || {};
+    const caffAll   = DB.g(K.caff) || {};
+    Object.keys(stressAll).forEach(d => dates.add(d));
+    Object.keys(sleepAll).forEach(d => dates.add(d));
+    Object.keys(caffAll).forEach(d => dates.add(d));
+    [...dates].sort().forEach(date => {
+      const st = DB.stressFor(date);
+      const sl = DB.sleepFor(date);
+      const ca = DB.caffFor(date);
+      rows.push([
+        date,
+        st?.level || '',
+        st?.mood || '',
+        sl?.duration || '',
+        sl?.quality || '',
+        ca?.c || 0,
+        ca?.a || 0,
+        pressureMap[date] || '',
+      ]);
+    });
+    if (rows.length <= 1) { showToast('No wellness data to export'); return; }
+    downloadFile(`equilibrium-wellness-${today()}.csv`, rows.map(r=>r.join(',')).join('\n'));
+    showToast('Wellness data exported!');
+  });
+
+  qs('#exp-json').addEventListener('click', () => {
+    const allData = {};
+    Object.keys(localStorage).filter(k => k.startsWith('eq_')).forEach(k => {
+      try { allData[k] = JSON.parse(localStorage.getItem(k)); } catch { allData[k] = localStorage.getItem(k); }
+    });
+    downloadFile(`equilibrium-backup-${today()}.json`, JSON.stringify(allData, null, 2), 'application/json');
+    showToast('Full backup exported!');
+  });
+}
+
+// ── PUSH NOTIFICATION REMINDERS ──────────────────────────────────
+async function checkNotifications() {
+  const s = DB.settings();
+  if (!s.notifEnabled) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  const todayStr = today();
+  const hhmm = now.toTimeString().slice(0,5);
+  const last = DB.g(K.notifLast) || {};
+
+  const reminders = [
+    {key:'morning', time: s.notifMorning || '08:00', title:'Morning Check-In', body:'Log your morning wellness and review your plan for the day.'},
+    {key:'med',     time: s.notifMed || '09:00',     title:'Medication Reminder', body:'Time to take your scheduled medications.'},
+    {key:'evening', time: s.notifEvening || '20:00', title:'Evening Log', body:'Log today\'s attacks, food, and how you\'re feeling.'},
+  ];
+
+  reminders.forEach(r => {
+    if (last[r.key] === todayStr) return; // already shown today
+    const [rh, rm] = r.time.split(':').map(Number);
+    const [nh, nm] = hhmm.split(':').map(Number);
+    const rMins = rh * 60 + rm;
+    const nMins = nh * 60 + nm;
+    if (nMins >= rMins && nMins <= rMins + 30) {
+      new Notification(r.title, {body: r.body, icon: './icon-192.png'});
+      last[r.key] = todayStr;
+      DB.s(K.notifLast, last);
+    }
+  });
+}
+
 // ── EVENT DELEGATION (main) ───────────────────────────────────────
 document.addEventListener('click', e => {
   // Tab navigation
@@ -1734,6 +2309,7 @@ document.addEventListener('click', e => {
       case 'log-attack':  openPanel('panel-log-attack', ()=>renderLogAttackPanel(null)); break;
       case 'add-med':     openPanel('panel-add-med', renderAddMedPanel); break;
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
+      case 'export':      openPanel('panel-export', renderExportPanel); break;
 
       case 'mood': {
         const m = e.target.closest('[data-mood]')?.dataset.mood;
@@ -1803,6 +2379,14 @@ document.addEventListener('click', e => {
     return;
   }
 
+  // Heat map day click
+  const heatCell = e.target.closest('[data-heat-date]');
+  if (heatCell) {
+    S.viewDate = heatCell.dataset.heatDate;
+    renderSymptoms();
+    return;
+  }
+
   // Attack button — open log panel immediately (skip timer)
   if (e.target.closest('#attack-btn')) {
     if (S.attack) {
@@ -1811,6 +2395,11 @@ document.addEventListener('click', e => {
       openPanel('panel-log-attack', () => renderLogAttackPanel(nowISO()));
     }
     return;
+  }
+
+  // Scanner close
+  if (e.target.id === 'btn-stop-scanner' || e.target.closest('#btn-stop-scanner')) {
+    stopScanner(); return;
   }
 
   // Panel close
@@ -1875,6 +2464,7 @@ document.addEventListener('submit', e => {
       id: uid(), date: dateStr, startTime: startISO,
       duration: dur, intensity: +fd.get('intensity'),
       symptoms: syms, notes: fd.get('notes').trim(),
+      medsTaken: qs('#chk-meds-taken')?.checked ?? false,
     };
     DB.saveAttack(attack);
     closePanel();
@@ -1988,6 +2578,84 @@ function initTutorial() {
   });
 }
 
+// ── WEEKLY SUMMARY ───────────────────────────────────────────────
+function showWeeklySummary() {
+  const now = new Date();
+  // Last week: Mon to Sun
+  const thisMon = startOfWeek(); // this Monday
+  const lastMon = shiftDate(thisMon, -7);
+  const lastSun = shiftDate(thisMon, -1);
+
+  const attacks = DB.attacks();
+  const lastWeekAtk = attacks.filter(a => a.date >= lastMon && a.date <= lastSun);
+  const prevMon = shiftDate(lastMon, -7);
+  const prevSun = shiftDate(lastMon, -1);
+  const prevWeekAtk = attacks.filter(a => a.date >= prevMon && a.date <= prevSun);
+
+  // Sodium avg last week
+  let sodTotal = 0, sodDays = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = shiftDate(lastMon, i);
+    const s = DB.totalSodium(d);
+    if (s > 0) { sodTotal += s; sodDays++; }
+  }
+  const avgSodium = sodDays ? Math.round(sodTotal/sodDays) : 0;
+  const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
+
+  // Sleep avg last week
+  let slpTotal = 0, slpDays = 0;
+  for (let i = 0; i < 7; i++) {
+    const sl = DB.sleepFor(shiftDate(lastMon, i));
+    if (sl) { slpTotal += sl.duration || 0; slpDays++; }
+  }
+  const avgSleep = slpDays ? (slpTotal/slpDays).toFixed(1) : 'N/A';
+
+  // Best / worst day (attacks + sodium)
+  let bestDay = null, worstDay = null, bestScore = Infinity, worstScore = -Infinity;
+  for (let i = 0; i < 7; i++) {
+    const d = shiftDate(lastMon, i);
+    const atk = attacks.filter(a => a.date === d).length;
+    const sod = DB.totalSodium(d);
+    const score = atk * 100 + sod;
+    if (score < bestScore) { bestScore = score; bestDay = d; }
+    if (score > worstScore) { worstScore = score; worstDay = d; }
+  }
+
+  const atkDiff = lastWeekAtk.length - prevWeekAtk.length;
+  const atkArrow = atkDiff > 0 ? `▲ ${atkDiff} more` : atkDiff < 0 ? `▼ ${Math.abs(atkDiff)} fewer` : '— same';
+  const atkColor = atkDiff > 0 ? 'var(--danger)' : atkDiff < 0 ? 'var(--success)' : 'var(--text-m)';
+
+  const el = qs('#weekly-summary-overlay');
+  qs('#weekly-summary-body').innerHTML = `
+    <div class="weekly-stat-grid">
+      <div class="weekly-stat-item">
+        <div class="weekly-stat-val">${lastWeekAtk.length}</div>
+        <div class="weekly-stat-lbl">Attacks last week</div>
+        <div style="font-size:12px;color:${atkColor};margin-top:2px">${atkArrow} vs week before</div>
+      </div>
+      <div class="weekly-stat-item">
+        <div class="weekly-stat-val">${avgSodium > 0 ? avgSodium+'mg' : 'N/A'}</div>
+        <div class="weekly-stat-lbl">Avg daily sodium</div>
+        ${avgSodium > 0 ? `<div style="font-size:12px;color:${avgSodium <= sGoal ? 'var(--success)' : 'var(--danger)'};margin-top:2px">${avgSodium <= sGoal ? '✅ Under goal' : '⚠️ Over goal'}</div>` : ''}
+      </div>
+      <div class="weekly-stat-item">
+        <div class="weekly-stat-val">${avgSleep}${avgSleep !== 'N/A' ? 'h' : ''}</div>
+        <div class="weekly-stat-lbl">Avg sleep</div>
+      </div>
+      <div class="weekly-stat-item">
+        <div class="weekly-stat-val">${prevWeekAtk.length}</div>
+        <div class="weekly-stat-lbl">Attacks week before</div>
+      </div>
+    </div>
+    ${bestDay ? `<div style="margin-top:var(--sp-md);font-size:13px">
+      <div style="margin-bottom:4px">✅ <strong>Best day:</strong> ${fmtDate(bestDay)}</div>
+      <div>⚠️ <strong>Toughest day:</strong> ${fmtDate(worstDay)}</div>
+    </div>` : ''}
+  `;
+
+  el.classList.remove('hidden');
+}
+
 // ── INIT ──────────────────────────────────────────────────────────
 function init() {
   // Restore active attack from storage (page reload resilience)
@@ -2009,6 +2677,13 @@ function init() {
   // Wire tutorial buttons
   initTutorial();
 
+  // Wire weekly summary close button
+  qs('#btn-close-weekly')?.addEventListener('click', () => {
+    const thisMon = startOfWeek();
+    localStorage.setItem(K.weeklySummaryShown, thisMon);
+    qs('#weekly-summary-overlay').classList.add('hidden');
+  });
+
   // Initial render
   switchTab('home');
 
@@ -2016,6 +2691,22 @@ function init() {
   if (!localStorage.getItem(K.tutorialSeen)) {
     setTimeout(() => Tutorial.show(), 400);
   }
+
+  // Show weekly summary on Mondays (once per week)
+  const todayD = new Date();
+  if (todayD.getDay() === 1) {
+    const thisWeekMonday = startOfWeek();
+    const lastShown = localStorage.getItem(K.weeklySummaryShown);
+    if (lastShown !== thisWeekMonday) {
+      setTimeout(() => showWeeklySummary(), 600);
+    }
+  }
+
+  // Check notifications
+  checkNotifications();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkNotifications();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);

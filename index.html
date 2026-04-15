@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="app.css?v=9">
+  <link rel="stylesheet" href="app.css?v=10">
 </head>
 <body>
 <div id="app">
@@ -160,6 +160,37 @@
     <div class="panel-body" id="panel-about-body"></div>
   </div>
 
+  <!-- ── Panel: Export ───────────────────────── -->
+  <div id="panel-export" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">📤 Export Data</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-export-body"></div>
+  </div>
+
+  <!-- ── Weekly Summary Overlay ───────────────── -->
+  <div id="weekly-summary-overlay" class="weekly-overlay hidden">
+    <div class="weekly-modal">
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px">📊 Last Week's Summary</div>
+      <div style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-lg)">Here's how you did last week</div>
+      <div id="weekly-summary-body"></div>
+      <button class="btn btn-primary btn-full" id="btn-close-weekly" style="margin-top:var(--sp-lg)">Got it!</button>
+    </div>
+  </div>
+
+  <!-- ── Scanner overlay ──────────────────────── -->
+  <div id="scanner-container" class="scanner-container hidden">
+    <video id="scanner-video" class="scanner-video" autoplay playsinline muted></video>
+    <div class="scan-frame"></div>
+    <div style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%)">
+      <button class="btn btn-danger" id="btn-stop-scanner">✕ Cancel</button>
+    </div>
+    <div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:white;font-size:13px;text-align:center;background:rgba(0,0,0,0.5);padding:8px 16px;border-radius:20px">
+      Point camera at barcode
+    </div>
+  </div>
+
   <!-- ── Tutorial overlay ─────────────────────── -->
   <div id="tutorial-overlay" class="tutorial-overlay hidden">
     <div class="tutorial-modal">
@@ -186,6 +217,6 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- App logic -->
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
