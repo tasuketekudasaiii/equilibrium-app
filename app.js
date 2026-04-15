@@ -1819,18 +1819,29 @@ function renderFoodSearch() {
   });
 }
 
+// Convert bare "100g" / "100 g" USDA default serving to US-friendly label
+function normalizeSrv(srv) {
+  if (!srv) return '1 serving';
+  return /^100\s*g$/i.test(srv.trim()) ? '3.5 oz' : srv;
+}
+
 function foodItemHTML(f, sourceLabel) {
-  const flagClass = f.s > 600 ? 'var(--danger)' : f.s > 300 ? 'var(--warning)' : 'var(--p)';
-  const data = JSON.stringify({n:f.n, s:f.s, srv:f.srv||'1 serving', f:!!f.f});
+  const srv  = normalizeSrv(f.srv);
+  const data = JSON.stringify({n:f.n, s:f.s, srv, f:!!f.f});
   return `
-    <div class="food-item food-item-edit">
+    <div class="food-item food-item-edit" data-base-sodium="${f.s}">
       <div class="food-item-info">
         <div class="food-name">${f.n}</div>
-        <div class="food-serving">${f.srv}${sourceLabel ? ` · <span style="color:var(--text-m);font-style:italic">${sourceLabel}</span>` : ''}</div>
+        <div class="food-serving">${srv}${sourceLabel ? ` · <span style="color:var(--text-m);font-style:italic">${sourceLabel}</span>` : ''}</div>
         ${f.f ? '<div class="food-flag">⚠️ HIGH SODIUM</div>' : ''}
       </div>
       <div class="food-item-add">
-        <input type="number" class="form-input food-sodium-edit" value="${f.s}" min="0" max="9999" data-orig="${f.s}">
+        <div class="food-qty-stepper">
+          <button class="food-qty-btn food-qty-dec" type="button">−</button>
+          <span class="food-qty-num">1</span>
+          <button class="food-qty-btn food-qty-inc" type="button">+</button>
+        </div>
+        <input type="number" class="form-input food-sodium-edit" value="${f.s}" min="0" max="99999" data-base="${f.s}">
         <span class="food-sodium-unit">mg</span>
         <button class="btn btn-primary btn-sm food-add-btn" data-food='${data}'>Add</button>
       </div>
@@ -2032,24 +2043,40 @@ async function startScanner() {
 }
 
 function setupFoodAddButtons(container) {
-  // Sync sodium edit inputs with their Add button data
   container.querySelectorAll('.food-item-edit').forEach(item => {
-    const input = item.querySelector('.food-sodium-edit');
-    const btn   = item.querySelector('.food-add-btn');
+    const input   = item.querySelector('.food-sodium-edit');
+    const btn     = item.querySelector('.food-add-btn');
+    const qtyEl   = item.querySelector('.food-qty-num');
+    const decBtn  = item.querySelector('.food-qty-dec');
+    const incBtn  = item.querySelector('.food-qty-inc');
     if (!input || !btn) return;
+
+    let qty = 1;
+    const baseSodium = parseInt(input.dataset.base) || 0;
+
+    function updateQty(delta) {
+      qty = Math.max(1, Math.min(99, qty + delta));
+      qtyEl.textContent = qty;
+      input.value = Math.round(baseSodium * qty);
+    }
+
+    decBtn?.addEventListener('click', () => updateQty(-1));
+    incBtn?.addEventListener('click', () => updateQty(+1));
+
+    // Manual sodium edit overrides the auto-calculated value
     input.addEventListener('input', () => {
-      try {
-        const food = JSON.parse(btn.dataset.food);
-        food.s = parseInt(input.value) || 0;
-        food.f = food.s > 600;
-        btn.dataset.food = JSON.stringify(food);
-      } catch {}
+      // If user manually edits sodium, detach from qty × base logic
+      // (qty stepper will still show, but won't recalculate)
+      input.dataset.base = Math.round((parseInt(input.value) || 0) / qty) || 0;
     });
+
     btn.addEventListener('click', () => {
       try {
         const food = JSON.parse(btn.dataset.food);
         food.s = parseInt(input.value) || 0;
         food.f = food.s > 600;
+        // Reflect qty in the food name if more than 1
+        if (qty > 1) food.n = `${food.n} ×${qty}`;
         addFoodToLog(food);
       } catch {}
     });

@@ -571,6 +571,10 @@ input[type="range"]::-webkit-slider-thumb {
 .food-sodium-unit { font-size: 11px; color: var(--text-m); font-weight: 600; margin-right: 4px; flex-shrink: 0; }
 .food-add-btn { padding: 7px 12px; font-size: 13px; white-space: nowrap; }
 .food-loading { font-size: 13px; color: var(--text-m); padding: var(--sp-sm) 0; }
+.food-qty-stepper { display: flex; align-items: center; gap: 2px; margin-right: 4px; }
+.food-qty-btn { width: 28px; height: 34px; border: 1.5px solid var(--border); border-radius: var(--r-sm); background: var(--surface2); font-size: 18px; font-weight: 700; color: var(--p); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.food-qty-btn:active { background: var(--surface3); }
+.food-qty-num { min-width: 22px; text-align: center; font-size: 14px; font-weight: 700; color: var(--text); }
 
 /* --- Tutorial overlay --- */
 .tutorial-overlay {
