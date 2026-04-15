@@ -267,8 +267,12 @@ function hasDataForDate(d) {
 }
 
 function getLoggingStreak() {
+  // Counts consecutive calendar days with any logged data.
+  // Starts from yesterday so the streak persists all day even before today's first log.
+  // Today is added on top once the user has logged something today.
+  const t = today();
   let streak = 0;
-  let d = today();
+  let d = daysAgo(1); // start from yesterday
   while (hasDataForDate(d)) {
     streak++;
     const prev = new Date(d + 'T12:00:00');
@@ -276,6 +280,7 @@ function getLoggingStreak() {
     d = prev.toISOString().split('T')[0];
     if (streak > 365) break;
   }
+  if (hasDataForDate(t)) streak++; // include today if already logged
   return streak;
 }
 
@@ -561,7 +566,6 @@ function renderSymptoms() {
         <div class="empty-text">When you have a vertigo episode, tap the button above to log it. Tracking helps you find your triggers.</div>
       </div>`}
 
-    ${renderHeatMapHTML()}
   `;
 
   if (active) startAttackClock();
@@ -627,51 +631,6 @@ function renderAttackChart() {
   });
 }
 
-// ── HEAT MAP ─────────────────────────────────────────────────────
-function renderHeatMapHTML() {
-  const allAttacks = DB.attacks();
-  // Build a map of date -> attack count
-  const countMap = {};
-  allAttacks.forEach(a => {
-    countMap[a.date] = (countMap[a.date] || 0) + 1;
-  });
-
-  const now = new Date();
-  let html = '<div class="card"><div class="card-title" style="margin-bottom:var(--sp-md)">📅 6-Month Attack Heat Map</div>';
-
-  for (let mo = 5; mo >= 0; mo--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - mo, 1);
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const monthLabel = d.toLocaleDateString('en-US', {month:'long', year:'numeric'});
-    // Day of week for first day (0=Sun). Heat map uses Mon–Sun (offset)
-    const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-    const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Mon=0 offset
-
-    html += `<div class="heat-month-label">${monthLabel}</div>`;
-    html += '<div class="heat-grid">';
-    // Empty cells for offset
-    for (let i = 0; i < startOffset; i++) {
-      html += '<div class="heat-cell heat-empty"></div>';
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      const cnt = countMap[dateStr] || 0;
-      let cls = 'heat-cell';
-      if (cnt === 0) cls += ' heat-none';
-      else if (cnt === 1) cls += ' heat-1';
-      else if (cnt === 2) cls += ' heat-2';
-      else cls += ' heat-3';
-      html += `<div class="${cls}" data-heat-date="${dateStr}" title="${dateStr}: ${cnt} attack${cnt!==1?'s':''}"></div>`;
-    }
-    html += '</div>';
-  }
-
-  html += '<div class="heat-legend"><span><span class="heat-swatch heat-none"></span>0</span><span><span class="heat-swatch heat-1"></span>1</span><span><span class="heat-swatch heat-2"></span>2</span><span><span class="heat-swatch heat-3"></span>3+</span></div>';
-  html += '</div>';
-  return html;
-}
 
 // Log past attack panel
 function renderLogAttackPanel(prefillStart) {
@@ -1224,6 +1183,15 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
+    <div class="more-item" data-action="settings">
+      <div class="more-icon" style="background:#F0F0F0">⚙️</div>
+      <div class="more-content">
+        <div class="more-title">Settings</div>
+        <div class="more-sub">Sodium goal, dark mode & reminders</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
     <div class="more-item" data-action="about">
       <div class="more-icon" style="background:#EEF0FF">ℹ️</div>
       <div class="more-content">
@@ -1233,50 +1201,56 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
-    <div class="card" style="margin-top:var(--sp-lg)">
-      <div class="card-title" style="margin-bottom:var(--sp-md)">Settings</div>
+    <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
+      Equilibrium v2.0 · All data stays on your device
+    </p>
+  `;
+}
+
+function renderSettingsPanel() {
+  const s = DB.settings();
+  qs('#panel-settings-body').innerHTML = `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-md)">General</div>
       <div class="form-group">
         <label class="form-label">Daily sodium goal (mg)</label>
-        <input type="number" class="form-input" id="set-sodium" value="${DB.settings().sodiumGoal||1500}" min="500" max="3000">
+        <input type="number" class="form-input" id="set-sodium" value="${s.sodiumGoal||1500}" min="500" max="3000">
       </div>
       <div class="toggle-row">
         <span class="toggle-label">Dark mode</span>
         <label class="toggle">
-          <input type="checkbox" id="set-dark" ${DB.settings().dark?'checked':''}>
+          <input type="checkbox" id="set-dark" ${s.dark?'checked':''}>
           <span class="toggle-track"></span>
         </label>
       </div>
+    </div>
 
-      <div class="divider" style="margin:var(--sp-md) 0"></div>
-      <div class="card-title" style="margin-bottom:var(--sp-md);font-size:14px">🔔 Reminders</div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-md)">🔔 Reminders</div>
       <div class="toggle-row" style="margin-bottom:var(--sp-sm)">
         <span class="toggle-label">Enable notifications</span>
         <label class="toggle">
-          <input type="checkbox" id="set-notif" ${DB.settings().notifEnabled?'checked':''}>
+          <input type="checkbox" id="set-notif" ${s.notifEnabled?'checked':''}>
           <span class="toggle-track"></span>
         </label>
       </div>
-      <div id="notif-times" style="display:${DB.settings().notifEnabled?'block':'none'}">
-        <div class="form-group">
+      <div id="notif-times" style="display:${s.notifEnabled?'block':'none'}">
+        <div class="form-group" style="margin-top:var(--sp-sm)">
           <label class="form-label">Morning check-in</label>
-          <input type="time" class="form-input" id="set-notif-morning" value="${DB.settings().notifMorning||'08:00'}">
+          <input type="time" class="form-input" id="set-notif-morning" value="${s.notifMorning||'08:00'}">
         </div>
         <div class="form-group">
           <label class="form-label">Medication reminder</label>
-          <input type="time" class="form-input" id="set-notif-med" value="${DB.settings().notifMed||'09:00'}">
+          <input type="time" class="form-input" id="set-notif-med" value="${s.notifMed||'09:00'}">
         </div>
         <div class="form-group">
           <label class="form-label">Evening log</label>
-          <input type="time" class="form-input" id="set-notif-evening" value="${DB.settings().notifEvening||'20:00'}">
+          <input type="time" class="form-input" id="set-notif-evening" value="${s.notifEvening||'20:00'}">
         </div>
       </div>
-
-      <button class="btn btn-primary btn-full" id="btn-save-settings" style="margin-top:var(--sp-sm)">Save Settings</button>
     </div>
 
-    <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
-      Equilibrium v1.0 · All data stays on your device
-    </p>
+    <button class="btn btn-primary btn-full" id="btn-save-settings">Save Settings</button>
   `;
 
   qs('#btn-save-settings').addEventListener('click', async () => {
@@ -1285,7 +1259,6 @@ function renderMore() {
     s.dark = qs('#set-dark').checked;
     const notifWanted = qs('#set-notif').checked;
     if (notifWanted && !s.notifEnabled) {
-      // Request permission
       if ('Notification' in window) {
         const perm = await Notification.requestPermission();
         s.notifEnabled = perm === 'granted';
@@ -1295,20 +1268,16 @@ function renderMore() {
       s.notifEnabled = notifWanted;
     }
     s.notifMorning = qs('#set-notif-morning')?.value || '08:00';
-    s.notifMed     = qs('#set-notif-med')?.value || '09:00';
+    s.notifMed     = qs('#set-notif-med')?.value    || '09:00';
     s.notifEvening = qs('#set-notif-evening')?.value || '20:00';
     DB.saveSettings(s);
     applyTheme(s.dark);
-    showToast('Settings saved');
+    showToast('Settings saved ✓');
   });
 
-  qs('#set-dark').addEventListener('change', function() {
-    applyTheme(this.checked);
-  });
-
+  qs('#set-dark').addEventListener('change', function() { applyTheme(this.checked); });
   qs('#set-notif').addEventListener('change', function() {
-    const el = qs('#notif-times');
-    if (el) el.style.display = this.checked ? 'block' : 'none';
+    qs('#notif-times').style.display = this.checked ? 'block' : 'none';
   });
 }
 
@@ -1534,120 +1503,228 @@ function renderTriggersPanel() {
 // ── DOCTOR REPORT PANEL ────────────────────────────────────────────
 function renderReportPanel() {
   const el = qs('#panel-report-body');
+  el.innerHTML = `
+    <p style="font-size:14px;color:var(--text-m);line-height:1.6;margin-bottom:var(--sp-md)">
+      Generate a beautiful 30-day health summary you can save as a PDF and share with your doctor.
+    </p>
+    <button class="btn btn-primary btn-full" id="btn-open-report" style="margin-bottom:var(--sp-sm)">
+      📄 Open Printable Report
+    </button>
+    <p style="font-size:12px;color:var(--text-m);text-align:center">Opens in a new tab · Use <strong>File → Print → Save as PDF</strong></p>
+  `;
+  qs('#btn-open-report').addEventListener('click', openPrintReport);
+}
+
+function openPrintReport() {
   const days = 30;
   const from = daysAgo(days);
-  const t = today();
+  const attacks = DB.attacks().filter(a => a.date >= from);
+  const avgIntensity = attacks.length ? (attacks.reduce((s,a)=>s+a.intensity,0)/attacks.length).toFixed(1) : '—';
+  const avgDuration  = attacks.length ? Math.round(attacks.reduce((s,a)=>s+(a.duration||0),0)/attacks.length) : null;
+  const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
 
-  const attacks = DB.attacks().filter(a=>a.date>=from);
-  const avgIntensity = attacks.length ? (attacks.reduce((s,a)=>s+a.intensity,0)/attacks.length).toFixed(1) : 'N/A';
-  const avgDuration  = attacks.length ? Math.round(attacks.reduce((s,a)=>s+(a.duration||0),0)/attacks.length) : 'N/A';
-
-  // Sodium averages
-  let sodiumTotal=0, sodiumDays=0;
-  for (let i=0;i<days;i++) {
-    const d=daysAgo(i); const s=DB.totalSodium(d);
-    if (s>0){sodiumTotal+=s;sodiumDays++;}
-  }
-  const avgSodium = sodiumDays ? Math.round(sodiumTotal/sodiumDays) : 'N/A';
-
-  // Sleep averages
+  let sodiumTotal=0, sodiumDays=0, sodiumOverGoal=0;
   let sleepTotal=0, sleepDays=0;
-  for (let i=0;i<days;i++) {
-    const sl=DB.sleepFor(daysAgo(i));
-    if (sl){sleepTotal+=sl.duration||0;sleepDays++;}
-  }
-  const avgSleep = sleepDays ? (sleepTotal/sleepDays).toFixed(1) : 'N/A';
-
-  // Stress averages
   let stressTotal=0, stressDays=0;
-  for (let i=0;i<days;i++) {
-    const s=DB.stressFor(daysAgo(i));
-    if (s){stressTotal+=s.level;stressDays++;}
-  }
-  const avgStress = stressDays ? (stressTotal/stressDays).toFixed(1) : 'N/A';
+  const dailyAttacks = [];
+  const dailySodium  = [];
 
-  // Medication adherence
+  for (let i = days-1; i >= 0; i--) {
+    const d = daysAgo(i);
+    const sod = DB.totalSodium(d);
+    const sl  = DB.sleepFor(d);
+    const str = DB.stressFor(d);
+    const atkCount = attacks.filter(a=>a.date===d).length;
+    dailyAttacks.push(atkCount);
+    dailySodium.push(sod);
+    if (sod > 0) { sodiumTotal += sod; sodiumDays++; if (sod > sGoal) sodiumOverGoal++; }
+    if (sl)  { sleepTotal  += sl.duration||0;  sleepDays++; }
+    if (str) { stressTotal += str.level;        stressDays++; }
+  }
+
+  const avgSodium = sodiumDays ? Math.round(sodiumTotal/sodiumDays) : null;
+  const avgSleep  = sleepDays  ? (sleepTotal/sleepDays).toFixed(1)  : null;
+  const avgStress = stressDays ? (stressTotal/stressDays).toFixed(1): null;
+
   const meds = DB.meds();
   let totalDoses=0, takenDoses=0;
   for (let i=0;i<days;i++) {
-    const d = daysAgo(i);
-    const doses = DB.dosesFor(d);
-    meds.forEach(m => {
-      (m.times||[]).forEach(time => {
-        totalDoses++;
-        const dose = doses.find(dd=>dd.medId===m.id&&dd.time===time);
-        if (dose?.taken) takenDoses++;
-      });
-    });
+    const d=daysAgo(i), doses=DB.dosesFor(d);
+    meds.forEach(m=>(m.times||[]).forEach(time=>{
+      totalDoses++;
+      if (doses.find(dd=>dd.medId===m.id&&dd.time===time&&dd.taken)) takenDoses++;
+    }));
   }
-  const adherencePct = totalDoses > 0 ? Math.round(takenDoses/totalDoses*100) : 'N/A';
-
-  const reportDate = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const adherencePct = totalDoses > 0 ? Math.round(takenDoses/totalDoses*100) : null;
   const e = DB.emergency();
+  const reportDate = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 
-  const reportText = `EQUILIBRIUM HEALTH REPORT
-Generated: ${reportDate}
-Patient: ${e.name || '(name not set)'}
-Diagnosis: ${e.diagnosis || "Ménière's Disease"}
-Doctor: ${e.doctor || '(not set)'}
+  // Build SVG bar charts (attacks + sodium)
+  function svgBars(data, color, maxVal, w=520, h=80) {
+    if (!maxVal) maxVal = Math.max(...data, 1);
+    const bw = (w - (data.length-1)*2) / data.length;
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+      ${data.map((v,i) => {
+        const bh = Math.round((v/maxVal)*h);
+        const x  = Math.round(i*(bw+2));
+        return v > 0
+          ? `<rect x="${x}" y="${h-bh}" width="${Math.max(1,Math.floor(bw))}" height="${bh}" rx="2" fill="${color}" opacity="0.85"/>`
+          : `<rect x="${x}" y="${h-2}" width="${Math.max(1,Math.floor(bw))}" height="2" rx="1" fill="#ddd"/>`;
+      }).join('')}
+    </svg>`;
+  }
 
-PERIOD: Last ${days} days
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const atkSVG = svgBars(dailyAttacks, '#E07070', Math.max(...dailyAttacks, 1));
+  const sodSVG = svgBars(dailySodium, '#5B9B8A', Math.max(...dailySodium, sGoal));
 
-VERTIGO ATTACKS (${days} days)
-• Total attacks: ${attacks.length}
-• Average intensity: ${avgIntensity}/10
-• Average duration: ${typeof avgDuration === 'number' ? fmtDur(avgDuration) : 'N/A'}
-${attacks.length>0?`• Most intense: ${Math.max(...attacks.map(a=>a.intensity))}/10`:''}
-${attacks.length>0?`• Attack dates: ${attacks.slice(0,8).map(a=>a.date).join(', ')}${attacks.length>8?'...':''}`:''}
+  function statBox(icon, val, label, sub='', color='#5B9B8A') {
+    return `<div style="background:#f8faf9;border-radius:12px;padding:16px 12px;text-align:center;border:1px solid #e0ecea">
+      <div style="font-size:22px;margin-bottom:4px">${icon}</div>
+      <div style="font-size:26px;font-weight:800;color:${color};line-height:1">${val}</div>
+      <div style="font-size:11px;font-weight:700;color:#6B8A83;margin-top:4px;text-transform:uppercase;letter-spacing:.5px">${label}</div>
+      ${sub ? `<div style="font-size:11px;color:#aaa;margin-top:2px">${sub}</div>` : ''}
+    </div>`;
+  }
 
-DIET & SODIUM
-• Average daily sodium: ${avgSodium}${typeof avgSodium === 'number' ? 'mg' : ''}
-• Sodium goal: <${DB.settings().sodiumGoal||1500}mg/day
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Equilibrium Health Report — ${reportDate}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1A2B26; background: white; padding: 40px; max-width: 800px; margin: 0 auto; }
+  @media print {
+    body { padding: 20px; }
+    .no-print { display: none !important; }
+    @page { margin: 1.5cm; size: A4 portrait; }
+  }
+  h2 { font-size: 13px; font-weight: 800; color: #6B8A83; text-transform: uppercase; letter-spacing: 1px; margin: 28px 0 12px; border-bottom: 2px solid #EBF5F2; padding-bottom: 6px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th { text-align: left; background: #EBF5F2; padding: 8px 10px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #3D7A6A; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-red { background: #FDEAEA; color: #E07070; }
+  .badge-green { background: #E8F7EA; color: #6DB87A; }
+  .badge-yellow { background: #FEF5E0; color: #C0803A; }
+  .chart-label { font-size: 10px; color: #aaa; display: flex; justify-content: space-between; margin-top: 4px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #EBF5F2; font-size: 11px; color: #aaa; text-align: center; }
+  .print-btn { background: #5B9B8A; color: white; border: none; border-radius: 10px; padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 28px; }
+  .print-btn:hover { background: #3D7A6A; }
+</style>
+</head>
+<body>
 
-MEDICATION ADHERENCE
-${meds.length>0 ? meds.map(m=>`• ${m.name} ${m.dosage} (${m.type}): ${m.times?.join(', ')}`).join('\n') : '• No medications logged'}
-${totalDoses>0 ? `• Overall adherence: ${adherencePct}% (${takenDoses}/${totalDoses} doses)` : ''}
+<div class="no-print" style="margin-bottom:24px">
+  <button class="print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
+</div>
 
-SLEEP
-• Average sleep: ${avgSleep}${typeof avgSleep === 'number' ? ' hours/night' : ''}
-
-STRESS
-• Average stress level: ${avgStress}${typeof avgStress === 'number' ? '/10' : ''}
-
-CURRENT MEDICATIONS
-${e.medications || meds.map(m=>`${m.name} ${m.dosage}`).join(', ') || '(not set)'}
-
-NOTES FOR PROVIDER
-[Add any specific concerns or questions here before your appointment]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Generated by Equilibrium — Ménière's Companion App`;
-
-  el.innerHTML = `
-    <div class="report-section">
-      <h3>Summary</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-sm);margin-bottom:var(--sp-md)">
-        <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-val">${attacks.length}</div><div class="stat-label">Attacks (30d)</div></div>
-        <div class="stat-card"><div class="stat-icon">🧂</div><div class="stat-val">${avgSodium}</div><div class="stat-label">Avg sodium (mg)</div></div>
-        <div class="stat-card"><div class="stat-icon">💊</div><div class="stat-val">${adherencePct}${typeof adherencePct === 'number' ? '%' : ''}</div><div class="stat-label">Adherence</div></div>
-        <div class="stat-card"><div class="stat-icon">🌙</div><div class="stat-val">${avgSleep}${typeof avgSleep === 'number' ? 'h' : ''}</div><div class="stat-label">Avg sleep</div></div>
-      </div>
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #5B9B8A">
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="width:52px;height:52px;border-radius:14px;background:#5B9B8A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg viewBox="0 0 512 512" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 96 196 Q 176 156 256 196 Q 336 236 416 196" stroke="white" stroke-width="40" fill="none" stroke-linecap="round"/>
+        <path d="M 96 256 Q 176 216 256 256 Q 336 296 416 256" stroke="white" stroke-width="40" fill="none" stroke-linecap="round"/>
+        <path d="M 96 316 Q 176 276 256 316 Q 336 356 416 316" stroke="white" stroke-width="40" fill="none" stroke-linecap="round"/>
+      </svg>
     </div>
-    <div class="report-section">
-      <h3>Full Report (copy to share)</h3>
-      <div class="report-box" id="report-text">${reportText}</div>
+    <div>
+      <div style="font-size:22px;font-weight:800;color:#1A2B26">Equilibrium</div>
+      <div style="font-size:12px;color:#6B8A83">Your Ménière's Companion</div>
     </div>
-  `;
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:18px;font-weight:700;color:#1A2B26">Health Report</div>
+    <div style="font-size:12px;color:#6B8A83">${reportDate}</div>
+    <div style="font-size:12px;color:#6B8A83">30-day period</div>
+  </div>
+</div>
 
-  qs('#btn-copy-report').onclick = () => {
-    navigator.clipboard.writeText(reportText).then(()=>showToast('Report copied to clipboard! 📋')).catch(()=>{
-      const ta = document.createElement('textarea');
-      ta.value = reportText; document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); document.body.removeChild(ta);
-      showToast('Report copied! 📋');
-    });
-  };
+<!-- Patient info -->
+${e.name||e.doctor ? `<div style="background:#EBF5F2;border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:32px;flex-wrap:wrap">
+  ${e.name ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Patient</div><div style="font-size:15px;font-weight:700">${e.name}</div></div>` : ''}
+  ${e.diagnosis ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Diagnosis</div><div style="font-size:15px;font-weight:700">${e.diagnosis}</div></div>` : ''}
+  ${e.doctor ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Physician</div><div style="font-size:15px;font-weight:700">${e.doctor}</div></div>` : ''}
+</div>` : ''}
+
+<!-- Stats -->
+<h2>30-Day Summary</h2>
+<div class="stat-grid">
+  ${statBox('⚡', attacks.length, 'Attacks', attacks.length===0?'Attack-free period':attacks.length>=5?'Frequent episodes':'', attacks.length>=5?'#E07070':attacks.length>=2?'#F0C060':'#6DB87A')}
+  ${statBox('🧂', avgSodium ? avgSodium+'mg' : '—', 'Avg Sodium/day', avgSodium ? (avgSodium > sGoal ? '⚠️ Over goal' : '✓ Under goal') : 'No data', avgSodium && avgSodium > sGoal ? '#E07070' : '#5B9B8A')}
+  ${statBox('🌙', avgSleep ? avgSleep+'h' : '—', 'Avg Sleep', avgSleep ? (parseFloat(avgSleep) < 6 ? 'Low — potential trigger' : 'Good range') : 'No data', avgSleep && parseFloat(avgSleep)<6?'#E07070':'#5B9B8A')}
+  ${statBox('💊', adherencePct != null ? adherencePct+'%' : '—', 'Med Adherence', adherencePct != null ? `${takenDoses}/${totalDoses} doses` : 'No meds logged', adherencePct != null && adherencePct < 70 ? '#F0C060' : '#5B9B8A')}
+</div>
+
+<!-- Attack chart -->
+<h2>Attack Frequency (30 days)</h2>
+<div>${atkSVG}</div>
+<div class="chart-label"><span>${daysAgo(days-1)}</span><span>Today</span></div>
+${attacks.length > 0 ? `
+<table style="margin-top:16px">
+  <tr><th>Date</th><th>Intensity</th><th>Duration</th><th>Symptoms</th><th>Meds Taken</th></tr>
+  ${attacks.slice(0,15).map(a=>`
+  <tr>
+    <td>${fmtDate(a.date)}</td>
+    <td><span class="badge ${a.intensity>=7?'badge-red':a.intensity>=4?'badge-yellow':'badge-green'}">${a.intensity}/10</span></td>
+    <td>${a.duration ? fmtDur(a.duration) : '—'}</td>
+    <td style="color:#6B8A83">${(a.symptoms||[]).join(', ')||'—'}</td>
+    <td>${a.medsTaken===true?'✓ Yes':a.medsTaken===false?'✗ No':'—'}</td>
+  </tr>`).join('')}
+</table>
+${attacks.length > 15 ? `<p style="font-size:12px;color:#aaa;margin-top:8px">+ ${attacks.length-15} more attacks not shown</p>` : ''}
+` : '<p style="color:#6B8A83;font-size:14px;margin-top:8px">No attacks logged in this period.</p>'}
+
+<!-- Sodium chart -->
+<h2>Daily Sodium Intake (30 days)</h2>
+<div>${sodSVG}</div>
+<div class="chart-label">
+  <span>${daysAgo(days-1)}</span>
+  <span style="color:#E07070">Goal: ${sGoal}mg/day · ${sodiumOverGoal} days over goal</span>
+  <span>Today</span>
+</div>
+
+<!-- Sleep & Stress -->
+<h2>Sleep & Stress</h2>
+<table>
+  <tr><th>Metric</th><th>Average</th><th>Days Logged</th><th>Notes</th></tr>
+  <tr><td>Sleep duration</td><td>${avgSleep ? avgSleep+'h' : '—'}</td><td>${sleepDays}</td><td style="color:#6B8A83">${avgSleep ? (parseFloat(avgSleep)<6?'Below recommended 7–9h':'Within healthy range') : 'No sleep data logged'}</td></tr>
+  <tr><td>Stress level</td><td>${avgStress ? avgStress+'/10' : '—'}</td><td>${stressDays}</td><td style="color:#6B8A83">${avgStress ? (parseFloat(avgStress)>=7?'High — potential trigger':parseFloat(avgStress)>=4?'Moderate':'Low') : 'No stress data logged'}</td></tr>
+</table>
+
+<!-- Medications -->
+<h2>Medications</h2>
+${meds.length > 0 ? `
+<table>
+  <tr><th>Medication</th><th>Dosage</th><th>Type</th><th>Schedule</th><th>Adherence (30d)</th></tr>
+  ${meds.map(m => {
+    let medTaken=0, medTotal=0;
+    for(let i=0;i<days;i++){const d=daysAgo(i),doses=DB.dosesFor(d);(m.times||[]).forEach(t=>{medTotal++;if(doses.find(dd=>dd.medId===m.id&&dd.time===t&&dd.taken))medTaken++;});}
+    const pct = medTotal>0?Math.round(medTaken/medTotal*100):null;
+    return `<tr><td><strong>${m.name}</strong></td><td>${m.dosage}</td><td>${m.type}</td><td>${(m.times||[]).join(', ')}</td><td>${pct!=null?`<span class="badge ${pct>=80?'badge-green':pct>=60?'badge-yellow':'badge-red'}">${pct}%</span>`:'—'}</td></tr>`;
+  }).join('')}
+</table>` : '<p style="color:#6B8A83;font-size:14px;margin-top:8px">No medications logged.</p>'}
+
+<!-- Notes -->
+<h2>Notes for Provider</h2>
+<div style="border:1px dashed #D4E4DF;border-radius:10px;padding:16px;min-height:80px;font-size:13px;color:#aaa;line-height:1.7">
+  Add your specific concerns or questions here before your appointment…
+</div>
+
+<div class="footer">
+  Generated by <strong>Equilibrium</strong> — Your Ménière's Companion &nbsp;·&nbsp; ${reportDate}<br>
+  <em>This report is for informational purposes only and does not constitute medical advice.</em>
+</div>
+
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); }
+  else showToast('Please allow pop-ups to open the report');
 }
 
 // ── EMERGENCY CARD PANEL ───────────────────────────────────────────
@@ -1772,28 +1849,53 @@ function customFoodSection() {
     </div>`;
 }
 
+function getRecentFoods(limit = 12) {
+  // Collect all logged foods across all dates, deduplicate by name, most recent first
+  const log = DB.sodiumLog();
+  const seen = new Set();
+  const recent = [];
+  // Sort dates descending
+  const dates = Object.keys(log).sort((a,b) => b.localeCompare(a));
+  for (const date of dates) {
+    for (const item of (log[date].items || [])) {
+      const key = item.n.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        recent.push({n: item.n, s: item.s, srv: item.srv || '1 serving', f: item.s > 600});
+      }
+      if (recent.length >= limit) return recent;
+    }
+  }
+  return recent;
+}
+
 function renderFoodResults(query) {
   const el = qs('#food-search-results');
   const q = query.toLowerCase().trim();
-  const localResults = q.length === 0
-    ? FOOD_DB.slice(0, 20)
-    : FOOD_DB.filter(f => f.n.toLowerCase().includes(q));
 
   let html = '';
-  if (localResults.length > 0) {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Common foods</div>`;
-    html += localResults.map(f => foodItemHTML(f, '')).join('');
-  }
 
-  if (q.length >= 2) {
+  if (q.length === 0) {
+    // Show recent foods when no query
+    const recent = getRecentFoods();
+    if (recent.length > 0) {
+      html += `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Recently logged</div>`;
+      html += recent.map(f => foodItemHTML(f, '')).join('');
+    } else {
+      html += `<div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">Search for a food</div><div class="empty-text">Type any food name to search the USDA database of 1M+ foods</div></div>`;
+    }
+  } else {
+    // Local FOOD_DB filter as instant results
+    const localResults = FOOD_DB.filter(f => f.n.toLowerCase().includes(q)).slice(0, 8);
+    if (localResults.length > 0) {
+      html += `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Quick matches</div>`;
+      html += localResults.map(f => foodItemHTML(f, '')).join('');
+    }
+    // API results section (async)
     html += `<div id="api-results-section">
-      <div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-md) 0 4px">Database results</div>
-      <div id="api-results-inner"><div class="food-loading">Searching…</div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-md) 0 4px">USDA Database</div>
+      <div id="api-results-inner"><div class="food-loading">Searching USDA…</div></div>
     </div>`;
-  }
-
-  if (!localResults.length && q.length < 2) {
-    html += `<div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">Start typing to search</div></div>`;
   }
 
   html += customFoodSection();
@@ -1801,9 +1903,7 @@ function renderFoodResults(query) {
   setupFoodAddButtons(el);
   setupCustomFood();
 
-  if (q.length >= 2) {
-    fetchFoodAPI(q);
-  }
+  if (q.length >= 2) fetchFoodAPI(q);
 }
 
 const USDA_KEY = '8Au8ObeS6w8wz5GIWyh3GTPpyIOvhb3SqHZgWhY9';
@@ -1828,7 +1928,17 @@ async function fetchFoodAPI(query) {
       return;
     }
 
-    const items = foods.map(f => {
+    // Deduplicate by normalised name — keep highest-quality data type first
+    const seenNames = new Set();
+    const dedupedFoods = foods.filter(f => {
+      // Normalise: lowercase, trim, remove content in parentheses like "(NFS)" or ", raw"
+      const norm = f.description.toLowerCase().replace(/\(.*?\)/g,'').replace(/,.*$/,'').trim();
+      if (seenNames.has(norm)) return false;
+      seenNames.add(norm);
+      return true;
+    });
+
+    const items = dedupedFoods.map(f => {
       const sodNut = f.foodNutrients.find(n => n.nutrientId === 1093 || n.nutrientNumber === '307' || (n.nutrientName||'').toLowerCase().includes('sodium'));
       const sodPer100 = sodNut?.value || 0; // mg per 100g
 
@@ -2309,6 +2419,7 @@ document.addEventListener('click', e => {
       case 'log-attack':  openPanel('panel-log-attack', ()=>renderLogAttackPanel(null)); break;
       case 'add-med':     openPanel('panel-add-med', renderAddMedPanel); break;
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
+      case 'settings':    openPanel('panel-settings', renderSettingsPanel); break;
       case 'export':      openPanel('panel-export', renderExportPanel); break;
 
       case 'mood': {
@@ -2329,18 +2440,21 @@ document.addEventListener('click', e => {
       }
       case 'caff-inc': case 'caff-dec': {
         const t=S.viewDate; const ca=DB.caffFor(t);
+        const prevC = ca.c;
         ca.c = clamp(ca.c + (act.endsWith('inc')?1:-1), 0, 20);
         DB.saveCaff(t, ca);
-        qs('#caff-val').textContent = ca.c;
-        if (ca.c >= CAFFEINE_WARN) renderDiet();
+        // Re-render if crossing the warning threshold in either direction
+        if (ca.c >= CAFFEINE_WARN || prevC >= CAFFEINE_WARN) renderDiet();
+        else qs('#caff-val').textContent = ca.c;
         break;
       }
       case 'alc-inc': case 'alc-dec': {
         const t=S.viewDate; const ca=DB.caffFor(t);
+        const prevA = ca.a;
         ca.a = clamp(ca.a + (act.endsWith('inc')?1:-1), 0, 20);
         DB.saveCaff(t, ca);
-        qs('#alc-val').textContent = ca.a;
-        if (ca.a >= ALCOHOL_WARN) renderDiet();
+        if (ca.a >= ALCOHOL_WARN || prevA >= ALCOHOL_WARN) renderDiet();
+        else qs('#alc-val').textContent = ca.a;
         break;
       }
       case 'toggle-dose': {

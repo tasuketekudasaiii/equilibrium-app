@@ -1,4 +1,4 @@
-const CACHE = 'equilibrium-v6';
+const CACHE = 'equilibrium-v7';
 const STATIC = [
   './index.html',
   './app.css',

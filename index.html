@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="app.css?v=10">
+  <link rel="stylesheet" href="app.css?v=11">
 </head>
 <body>
 <div id="app">
@@ -137,9 +137,6 @@
       <button class="panel-close" data-close>✕</button>
     </div>
     <div class="panel-body" id="panel-report-body"></div>
-    <div class="panel-footer">
-      <button class="btn btn-primary btn-full" id="btn-copy-report">📋 Copy Report</button>
-    </div>
   </div>
 
   <!-- ── Panel: Emergency Card ────────────── -->
@@ -158,6 +155,14 @@
       <button class="panel-close" data-close>✕</button>
     </div>
     <div class="panel-body" id="panel-about-body"></div>
+  </div>
+
+  <div id="panel-settings" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">⚙️ Settings</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-settings-body"></div>
   </div>
 
   <!-- ── Panel: Export ───────────────────────── -->
@@ -217,6 +222,6 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- App logic -->
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
