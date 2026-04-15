@@ -1617,10 +1617,9 @@ function openPrintReport() {
 </head>
 <body>
 
-<button class="no-print" onclick="window.close()" style="position:fixed;top:16px;right:16px;z-index:9999;background:#5B9B8A;border:none;border-radius:50px;padding:14px 26px;font-size:17px;font-weight:700;color:white;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.25);-webkit-tap-highlight-color:transparent;min-width:100px;text-align:center">✕ Close</button>
-
-<div class="no-print" style="margin-bottom:24px">
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
   <button class="print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
+  <button onclick="window.close()" style="background:#5B9B8A;border:none;border-radius:50px;padding:14px 26px;font-size:17px;font-weight:700;color:white;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);-webkit-tap-highlight-color:transparent">✕ Close</button>
 </div>
 
 <!-- Header -->
