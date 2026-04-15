@@ -1617,8 +1617,9 @@ function openPrintReport() {
 </head>
 <body>
 
-<div class="no-print" style="margin-bottom:24px">
+<div class="no-print" style="margin-bottom:24px;display:flex;gap:12px;align-items:center">
   <button class="print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
+  <button onclick="window.close()" style="background:none;border:2px solid #D4E4DF;border-radius:10px;padding:11px 20px;font-size:15px;font-weight:600;color:#6B8A83;cursor:pointer;">✕ Close</button>
 </div>
 
 <!-- Header -->
