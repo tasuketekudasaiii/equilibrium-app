@@ -1294,23 +1294,6 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
-    <div class="more-item" data-action="health-import">
-      <div class="more-icon" style="background:#FFE8EC">🍎</div>
-      <div class="more-content">
-        <div class="more-title">Import Apple Health</div>
-        <div class="more-sub">Import sleep data from iPhone Health app</div>
-      </div>
-      <div class="more-arrow">›</div>
-    </div>
-
-    <div class="more-item" data-action="share">
-      <div class="more-icon" style="background:#E8F0FF">📤</div>
-      <div class="more-content">
-        <div class="more-title">Share Progress</div>
-        <div class="more-sub">Send your weekly summary to family or doctor</div>
-      </div>
-      <div class="more-arrow">›</div>
-    </div>
 
     <div class="more-item" data-action="emergency">
       <div class="more-icon" style="background:#FDEAEA">🚨</div>
@@ -2587,185 +2570,6 @@ function renderExportPanel() {
   });
 }
 
-// ── APPLE HEALTH IMPORT ──────────────────────────────────────────
-function renderHealthImportPanel() {
-  const el = qs('#panel-health-import-body');
-  el.innerHTML = `
-    <div class="card">
-      <div class="card-title" style="margin-bottom:var(--sp-sm)">🍎 Import from Apple Health</div>
-      <p style="font-size:13px;color:var(--text-m);line-height:1.6;margin-bottom:var(--sp-md)">
-        Export your Apple Health data, then import sleep records here.
-      </p>
-      <ol style="font-size:13px;color:var(--text-m);line-height:1.8;padding-left:20px;margin-bottom:var(--sp-md)">
-        <li>Open the <strong>Health app</strong> on your iPhone</li>
-        <li>Tap your profile picture → <strong>Export All Health Data</strong></li>
-        <li>Unzip the downloaded file</li>
-        <li>Upload the <strong>export.xml</strong> file below</li>
-      </ol>
-      <label class="btn btn-outline btn-full" style="cursor:pointer;margin-bottom:var(--sp-sm)">
-        📂 Choose export.xml
-        <input type="file" id="health-xml-input" accept=".xml" style="display:none">
-      </label>
-      <div id="health-import-status"></div>
-    </div>
-
-    <div class="card" id="health-import-preview" style="display:none">
-      <div class="card-title" style="margin-bottom:var(--sp-sm)">Preview</div>
-      <div id="health-import-preview-body"></div>
-      <button class="btn btn-primary btn-full" id="btn-confirm-import" style="margin-top:var(--sp-md)">Import Data</button>
-    </div>
-  `;
-
-  let parsedSleepData = [];
-
-  qs('#health-xml-input').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const statusEl = qs('#health-import-status');
-    statusEl.innerHTML = '<p style="font-size:13px;color:var(--text-m)">Parsing file…</p>';
-
-    try {
-      const text = await file.text();
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(text, 'application/xml');
-
-      // Parse sleep records
-      const sleepRecords = [...xml.querySelectorAll('Record[type="HKCategoryTypeIdentifierSleepAnalysis"]')];
-      const sleepByDate = {};
-
-      sleepRecords.forEach(r => {
-        const val = r.getAttribute('value') || '';
-        // Only count "InBed" or "Asleep" values
-        if (!val.includes('Asleep') && !val.includes('InBed')) return;
-        const startStr = r.getAttribute('startDate') || '';
-        const endStr   = r.getAttribute('endDate') || '';
-        if (!startStr || !endStr) return;
-        const start = new Date(startStr);
-        const end   = new Date(endStr);
-        const durationH = (end - start) / 3600000;
-        if (durationH <= 0 || durationH > 16) return;
-        // Use the wake date as the "sleep date"
-        const dateKey = end.toISOString().split('T')[0];
-        if (!sleepByDate[dateKey]) sleepByDate[dateKey] = {total: 0, count: 0, wakeTime: end.toTimeString().slice(0,5)};
-        sleepByDate[dateKey].total += durationH;
-        sleepByDate[dateKey].count++;
-      });
-
-      parsedSleepData = Object.entries(sleepByDate)
-        .map(([date, v]) => ({date, duration: Math.round(v.total * 10) / 10, wakeTime: v.wakeTime}))
-        .filter(d => d.duration > 0 && d.duration <= 14)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(-90); // last 90 days
-
-      if (!parsedSleepData.length) {
-        statusEl.innerHTML = '<p style="font-size:13px;color:var(--danger)">No sleep records found in this file.</p>';
-        return;
-      }
-
-      statusEl.innerHTML = '';
-      const previewCard = qs('#health-import-preview');
-      previewCard.style.display = 'block';
-      const sample = parsedSleepData.slice(-5).reverse();
-      qs('#health-import-preview-body').innerHTML = `
-        <p style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-sm)">Found <strong>${parsedSleepData.length}</strong> sleep records. Sample:</p>
-        ${sample.map(d => `
-          <div class="list-item" style="padding:8px 0">
-            <div class="list-content">
-              <div class="list-title">${fmtDate(d.date)}</div>
-              <div class="list-sub">${d.duration}h sleep · Wake ${d.wakeTime}</div>
-            </div>
-          </div>`).join('')}
-        ${parsedSleepData.length > 5 ? `<p style="font-size:12px;color:var(--text-m);margin-top:4px">…and ${parsedSleepData.length - 5} more</p>` : ''}
-      `;
-
-    } catch (err) {
-      qs('#health-import-status').innerHTML = '<p style="font-size:13px;color:var(--danger)">Error reading file. Make sure it\'s the export.xml from Apple Health.</p>';
-    }
-  });
-
-  qs('#panel-health-import-body').addEventListener('click', e => {
-    if (e.target.id !== 'btn-confirm-import') return;
-    let imported = 0;
-    parsedSleepData.forEach(d => {
-      const existing = DB.sleepFor(d.date);
-      if (!existing) {
-        DB.saveSleep(d.date, {bedtime: '', wakeTime: d.wakeTime, duration: d.duration, quality: 3});
-        imported++;
-      }
-    });
-    showToast(`Imported ${imported} sleep records ✓`);
-    closePanel();
-  });
-}
-
-// ── SHARE PROGRESS ───────────────────────────────────────────────
-function renderSharePanel() {
-  const el = qs('#panel-share-body');
-
-  // Build weekly summary text
-  const thisMon = startOfWeek();
-  const attacks = DB.attacks();
-  const weekAtk = attacks.filter(a => a.date >= thisMon).length;
-  const logStreak = getLoggingStreak();
-  const sodStreak = getSodiumStreak();
-  const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
-
-  let sodTotal = 0, sodDays = 0;
-  for (let i = 0; i < 7; i++) {
-    const d = daysAgo(i);
-    const s = DB.totalSodium(d);
-    if (s > 0) { sodTotal += s; sodDays++; }
-  }
-  const avgSodium = sodDays ? Math.round(sodTotal / sodDays) : 0;
-
-  const shareText = [
-    '📊 My Equilibrium Weekly Update',
-    '',
-    `⚡ Attacks this week: ${weekAtk}`,
-    avgSodium > 0 ? `🧂 Avg daily sodium: ${avgSodium}mg (goal: ${sGoal}mg)` : null,
-    `🔥 Logging streak: ${logStreak} days`,
-    sodStreak > 0 ? `🧂 Low-sodium streak: ${sodStreak} days` : null,
-    '',
-    'Tracked with Equilibrium — Ménière\'s Companion',
-  ].filter(l => l !== null).join('\n');
-
-  el.innerHTML = `
-    <div class="card">
-      <div class="card-title" style="margin-bottom:var(--sp-sm)">This Week</div>
-      <div style="background:var(--surface2);border-radius:var(--r-md);padding:var(--sp-md);font-size:14px;line-height:1.8;white-space:pre-wrap;font-family:var(--font);margin-bottom:var(--sp-md)">${shareText}</div>
-      <button class="btn btn-primary btn-full" id="btn-share-native" style="margin-bottom:8px">📤 Share</button>
-      <button class="btn btn-ghost btn-full" id="btn-share-copy">📋 Copy to Clipboard</button>
-    </div>
-    <div class="card">
-      <div class="card-title" style="margin-bottom:var(--sp-sm)">Share with your care team</div>
-      <p style="font-size:13px;color:var(--text-m);line-height:1.6">Send your weekly summary to a family member, caregiver, or doctor to keep them updated on your progress.</p>
-    </div>
-  `;
-
-  qs('#btn-share-native').addEventListener('click', async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({title: 'My Equilibrium Weekly Update', text: shareText});
-      } catch (err) {
-        if (err.name !== 'AbortError') showToast('Could not share');
-      }
-    } else {
-      // Fallback: copy
-      await navigator.clipboard?.writeText(shareText);
-      showToast('Copied to clipboard!');
-    }
-  });
-
-  qs('#btn-share-copy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(shareText);
-      showToast('Copied to clipboard!');
-    } catch {
-      showToast('Could not copy');
-    }
-  });
-}
-
 // ── PUSH NOTIFICATION REMINDERS ──────────────────────────────────
 async function checkNotifications() {
   const s = DB.settings();
@@ -2836,8 +2640,7 @@ document.addEventListener('click', e => {
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
       case 'settings':    openPanel('panel-settings', renderSettingsPanel); break;
       case 'export':      openPanel('panel-export', renderExportPanel); break;
-      case 'health-import': openPanel('panel-health-import', renderHealthImportPanel); break;
-      case 'share':       openPanel('panel-share', renderSharePanel); break;
+
       case 'year-review': openPanel('panel-review', renderReviewPanel); break;
 
       case 'mood': {
