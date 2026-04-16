@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="app.css?v=12">
+  <link rel="stylesheet" href="app.css?v=13">
 </head>
 <body>
 <div id="app">
@@ -214,6 +214,46 @@
     <div class="cal-modal" id="cal-modal"></div>
   </div>
 
+  <!-- ── Panel: Apple Health Import ───────── -->
+  <div id="panel-health-import" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">🍎 Import Health Data</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-health-import-body"></div>
+  </div>
+
+  <!-- ── Panel: Share Progress ───────────────── -->
+  <div id="panel-share" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">📤 Share Progress</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-share-body"></div>
+  </div>
+
+  <!-- ── Panel: Year in Review ───────────────── -->
+  <div id="panel-review" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">🌟 Year in Review</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-review-body"></div>
+  </div>
+
+  <!-- ── Year Review Slides ───────────────────── -->
+  <div id="review-overlay" class="review-overlay hidden">
+    <div class="review-modal">
+      <button class="review-skip" id="btn-review-skip">Skip</button>
+      <div id="review-slide"></div>
+      <div class="review-dots" id="review-dots"></div>
+      <div class="review-nav">
+        <button class="btn btn-ghost" id="btn-review-prev" style="color:rgba(255,255,255,0.7)">← Back</button>
+        <button class="btn" id="btn-review-next" style="background:rgba(255,255,255,0.2);color:white">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Toast ─────────────────────────────── -->
   <div id="toast"></div>
 
@@ -222,6 +262,6 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- App logic -->
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

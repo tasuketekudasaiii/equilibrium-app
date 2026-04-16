@@ -18,6 +18,7 @@ const K = {
   notifLast:'eq_notif_last',
   weeklySummaryShown:'eq_week_summary',
   pressure:'eq_pressure',
+  onboarding:'eq_onboarding',
 };
 
 const SYMPTOMS = [
@@ -33,6 +34,16 @@ const MOODS = [
   {id:'frustrated',e:'😤',l:'Frustrated'},
 ];
 const MED_TYPES = ['diuretic','antihistamine','antiemetic','betahistine','corticosteroid','supplement','other'];
+
+const ONBOARDING_TASKS = [
+  {id:'log_meal',    label:'Log a meal',              desc:'Open Diet → search and add a food item'},
+  {id:'log_water',   label:'Log 4+ glasses of water', desc:'Tap the water glasses on the Home or Diet tab'},
+  {id:'add_med',     label:'Add a medication',         desc:'Go to More → Medications → Add'},
+  {id:'stress_in',   label:'Complete a stress check-in', desc:'Tap Wellness → save your mood and stress level'},
+  {id:'log_sleep',   label:'Log your sleep',          desc:'Go to Wellness → save your sleep hours'},
+  {id:'no_attack',   label:'Mark today attack-free',  desc:'If you have no attack today, just keep logging'},
+  {id:'tutorial',    label:'Finish the app tour',     desc:'Go to More → About → View Tutorial'},
+];
 
 const FOOD_DB = [
   {n:'Fresh apple',s:0,srv:'1 medium'},{n:'Banana',s:1,srv:'1 medium'},
@@ -359,6 +370,96 @@ function renderStreaksCardHTML() {
     </div>`;
 }
 
+// ── ONBOARDING CHECKLIST ─────────────────────────────────────────
+function getOnboardingState() {
+  return DB.g(K.onboarding) || {startDate: today(), done: {}};
+}
+
+function checkOnboardingAuto() {
+  // Auto-check tasks based on current data
+  const state = getOnboardingState();
+  const t = today();
+  let changed = false;
+
+  if ((DB.sodiumFor(t).items || []).length > 0 && !state.done.log_meal) {
+    state.done.log_meal = true; changed = true;
+  }
+  if (DB.hydFor(t) >= 4 && !state.done.log_water) {
+    state.done.log_water = true; changed = true;
+  }
+  if (DB.meds().length > 0 && !state.done.add_med) {
+    state.done.add_med = true; changed = true;
+  }
+  if (DB.stressFor(t) && !state.done.stress_in) {
+    state.done.stress_in = true; changed = true;
+  }
+  if (DB.sleepFor(t) && !state.done.log_sleep) {
+    state.done.log_sleep = true; changed = true;
+  }
+  if (!DB.attacks().some(a => a.date === t) && hasDataForDate(t) && !state.done.no_attack) {
+    state.done.no_attack = true; changed = true;
+  }
+  if (localStorage.getItem(K.tutorialSeen) && !state.done.tutorial) {
+    state.done.tutorial = true; changed = true;
+  }
+  if (changed) DB.s(K.onboarding, state);
+  return state;
+}
+
+function renderOnboardingCard() {
+  const state = getOnboardingState();
+
+  // Only show for first 14 days
+  const startDate = new Date(state.startDate + 'T12:00:00');
+  const daysSinceStart = Math.floor((Date.now() - startDate) / 86400000);
+  if (daysSinceStart > 14) return '';
+
+  // Auto-check what's been done
+  checkOnboardingAuto();
+  const fresh = getOnboardingState();
+  const doneCount = Object.values(fresh.done).filter(Boolean).length;
+  const total = ONBOARDING_TASKS.length;
+
+  if (doneCount >= total) {
+    // All done — show celebration and don't render again after dismissal
+    if (fresh.celebrated) return '';
+    return `
+      <div class="card" style="background:linear-gradient(135deg,var(--p),var(--p-light));color:white" id="onboarding-card">
+        <div style="font-size:24px;margin-bottom:6px">🎉</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:4px">You're all set!</div>
+        <div style="font-size:13px;opacity:0.9;line-height:1.5;margin-bottom:var(--sp-md)">You've completed the getting-started checklist. You're now an Equilibrium pro!</div>
+        <button class="btn" style="background:rgba(255,255,255,0.25);color:white;font-size:13px" id="btn-dismiss-onboarding">Got it ✓</button>
+      </div>`;
+  }
+
+  return `
+    <div class="card" id="onboarding-card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">🚀 Getting Started</div>
+          <div class="card-sub">${doneCount}/${total} tasks complete</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-dismiss-onboarding">Hide</button>
+      </div>
+      <div class="onboarding-progress">
+        <div class="onboarding-bar" style="width:${Math.round(doneCount/total*100)}%"></div>
+      </div>
+      <div style="margin-top:var(--sp-sm)">
+        ${ONBOARDING_TASKS.map(task => {
+          const done = fresh.done[task.id];
+          return `
+            <div class="onboarding-task ${done ? 'done' : ''}">
+              <div class="onboarding-check">${done ? '✓' : ''}</div>
+              <div>
+                <div class="onboarding-label">${task.label}</div>
+                ${!done ? `<div class="onboarding-desc">${task.desc}</div>` : ''}
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
 // ── HOME VIEW ─────────────────────────────────────────────────────
 function renderHome() {
   const t       = S.viewDate;
@@ -447,6 +548,8 @@ function renderHome() {
     </div>
 
     ${renderStreaksCardHTML()}
+
+    ${renderOnboardingCard()}
 
     ${allAtk.length > 0 ? `
     <div class="card">
@@ -940,15 +1043,18 @@ async function renderPressureCard() {
       navigator.geolocation.getCurrentPosition(res, rej, {timeout:8000})
     );
     const {latitude: lat, longitude: lon} = pos.coords;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=pressure_msl&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=pressure_msl,relative_humidity_2m,temperature_2m&timezone=auto`;
     const resp = await fetch(url, {signal: AbortSignal.timeout(10000)});
     const data = await resp.json();
     const hpa = Math.round(data.current?.pressure_msl || 0);
+    const humidity = Math.round(data.current?.relative_humidity_2m || 0);
+    const tempC = data.current?.temperature_2m;
+    const tempF = tempC != null ? Math.round(tempC * 9/5 + 32) : null;
 
     if (hpa > 0) {
       // Store reading (one per day)
       const idx = pressureLog.findIndex(p => p.date === todayStr);
-      const entry = {date: todayStr, hpa, time: nowISO()};
+      const entry = {date: todayStr, hpa, humidity, tempF, time: nowISO()};
       if (idx >= 0) pressureLog[idx] = entry;
       else pressureLog.push(entry);
       // Keep last 30 days
@@ -974,17 +1080,31 @@ async function renderPressureCard() {
   }
 
   const hpa = current.hpa;
+  const humidity = current.humidity || null;
+  const tempF = current.tempF || null;
   const status = hpa < 1010 ? {icon:'⚠️', label:'Low pressure — possible trigger', color:'var(--warning)'}
     : hpa > 1020 ? {icon:'✅', label:'High pressure — generally stable', color:'var(--success)'}
     : {icon:'🟢', label:'Normal pressure', color:'var(--text-m)'};
 
   el.innerHTML = `
-    <div class="card-title" style="margin-bottom:8px">🌡️ Barometric Pressure</div>
-    <div style="display:flex;align-items:center;gap:var(--sp-md);margin-bottom:var(--sp-sm)">
-      <div style="font-size:32px;font-weight:800;color:var(--p)">${hpa}<span style="font-size:14px;font-weight:600"> hPa</span></div>
-      <div style="font-size:13px;color:${status.color}">${status.icon} ${status.label}</div>
+    <div class="card-title" style="margin-bottom:8px">🌡️ Weather & Pressure</div>
+    <div style="display:flex;gap:var(--sp-md);margin-bottom:var(--sp-md);flex-wrap:wrap">
+      <div class="weather-stat">
+        <div class="weather-val">${hpa}<span class="weather-unit"> hPa</span></div>
+        <div class="weather-lbl">Pressure</div>
+      </div>
+      ${humidity != null ? `<div class="weather-stat">
+        <div class="weather-val">${humidity}<span class="weather-unit">%</span></div>
+        <div class="weather-lbl">Humidity</div>
+      </div>` : ''}
+      ${tempF != null ? `<div class="weather-stat">
+        <div class="weather-val">${tempF}<span class="weather-unit">°F</span></div>
+        <div class="weather-lbl">Temp</div>
+      </div>` : ''}
     </div>
-    <div style="font-size:11px;color:var(--text-m);margin-bottom:var(--sp-sm)">7-day trend</div>
+    <div style="font-size:12px;color:${status.color};margin-bottom:var(--sp-sm)">${status.icon} ${status.label}</div>
+    ${humidity != null && humidity > 75 ? '<div style="font-size:12px;color:var(--warning);font-weight:600">💧 High humidity may worsen symptoms</div>' : ''}
+    <div style="font-size:11px;color:var(--text-m);margin:var(--sp-sm) 0 4px">7-day pressure trend</div>
     <canvas id="pressure-sparkline" height="40"></canvas>
   `;
 
@@ -1054,7 +1174,7 @@ function renderAboutPanel() {
         </svg>
       </div>
       <div style="font-size:22px;font-weight:800;color:var(--text)">Equilibrium</div>
-      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v1.0</div>
+      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v3.0</div>
     </div>
 
     <div class="card">
@@ -1174,6 +1294,24 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
+    <div class="more-item" data-action="health-import">
+      <div class="more-icon" style="background:#FFE8EC">🍎</div>
+      <div class="more-content">
+        <div class="more-title">Import Apple Health</div>
+        <div class="more-sub">Import sleep data from iPhone Health app</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
+    <div class="more-item" data-action="share">
+      <div class="more-icon" style="background:#E8F0FF">📤</div>
+      <div class="more-content">
+        <div class="more-title">Share Progress</div>
+        <div class="more-sub">Send your weekly summary to family or doctor</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
     <div class="more-item" data-action="emergency">
       <div class="more-icon" style="background:#FDEAEA">🚨</div>
       <div class="more-content">
@@ -1192,6 +1330,15 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
+    <div class="more-item" data-action="year-review">
+      <div class="more-icon" style="background:#FFF3E0">🌟</div>
+      <div class="more-content">
+        <div class="more-title">Year in Review</div>
+        <div class="more-sub">Your health journey, beautifully summarized</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
     <div class="more-item" data-action="about">
       <div class="more-icon" style="background:#EEF0FF">ℹ️</div>
       <div class="more-content">
@@ -1202,7 +1349,7 @@ function renderMore() {
     </div>
 
     <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
-      Equilibrium v2.0 · All data stays on your device
+      Equilibrium v3.0 · All data stays on your device
     </p>
   `;
 }
@@ -1988,8 +2135,9 @@ function stopScanner() {
 }
 
 async function startScanner() {
+  // If BarcodeDetector is not supported (iOS Safari), show the fallback UI
   if (!('BarcodeDetector' in window)) {
-    showToast('Barcode scanning not supported on this device');
+    showScannerFallback();
     return;
   }
   try {
@@ -2008,38 +2156,98 @@ async function startScanner() {
         if (codes.length > 0) {
           const barcode = codes[0].rawValue;
           stopScanner();
-          showToast('Barcode found — looking up product…');
-          // Look up in Open Food Facts
-          try {
-            const resp = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {signal: AbortSignal.timeout(10000)});
-            const data = await resp.json();
-            if (data.status === 1 && data.product) {
-              const p = data.product;
-              const name = p.product_name || 'Unknown product';
-              const sodiumPer100 = (p.nutriments?.sodium_100g || 0) * 1000; // g/100g -> mg/100g
-              const servingG = parseFloat(p.serving_size) || 100;
-              const sodium = Math.round(sodiumPer100 / 100 * servingG);
-              const srv = p.serving_size || '100g';
-              const food = {n: name.charAt(0).toUpperCase() + name.slice(1).slice(0,55), s: sodium, srv, f: sodium > 600};
-              const resultsEl = qs('#food-search-results');
-              if (resultsEl) {
-                const section = document.createElement('div');
-                section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Scanned product</div>${foodItemHTML(food, 'Barcode')}`;
-                resultsEl.prepend(section);
-                setupFoodAddButtons(section);
-              }
-            } else {
-              showToast('Product not found in database');
-            }
-          } catch {
-            showToast('Could not look up product');
-          }
+          lookupBarcode(barcode);
         }
       } catch (_) {}
     }, 500);
   } catch (err) {
-    showToast('Camera access denied or unavailable');
+    showToast('Camera access denied — try manual entry below');
+    showScannerFallback();
   }
+}
+
+async function lookupBarcode(barcode) {
+  showToast('Barcode found — looking up product…');
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {signal: AbortSignal.timeout(10000)});
+    const data = await resp.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const name = p.product_name || 'Unknown product';
+      const sodiumPer100 = (p.nutriments?.sodium_100g || 0) * 1000;
+      const servingG = parseFloat(p.serving_size) || 100;
+      const sodium = Math.round(sodiumPer100 / 100 * servingG);
+      const srv = p.serving_size || '100g';
+      const food = {n: name.charAt(0).toUpperCase() + name.slice(1).slice(0,55), s: sodium, srv, f: sodium > 600};
+      const resultsEl = qs('#food-search-results');
+      if (resultsEl) {
+        const section = document.createElement('div');
+        section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Scanned product</div>${foodItemHTML(food, 'Barcode')}`;
+        resultsEl.prepend(section);
+        setupFoodAddButtons(section);
+        // open the food search panel to show results
+        openPanel('panel-food-search', renderFoodSearch);
+      }
+    } else {
+      showToast('Product not found — try manual entry');
+      showScannerFallback();
+    }
+  } catch {
+    showToast('Could not look up product');
+    showScannerFallback();
+  }
+}
+
+function showScannerFallback() {
+  // iOS / unsupported: show file capture + manual UPC entry inside food search panel
+  openPanel('panel-food-search', () => {
+    const el = qs('#food-search-results');
+    if (!el) return;
+    el.innerHTML = `
+      <div class="scanner-fallback-card">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:var(--sp-sm)">📷 Scan Barcode (iOS)</div>
+        <p style="font-size:12px;color:var(--text-m);margin-bottom:var(--sp-md)">Take a photo of the barcode, or type it in manually below.</p>
+        <label class="btn btn-outline btn-full" style="margin-bottom:var(--sp-sm);cursor:pointer">
+          📷 Open Camera
+          <input type="file" accept="image/*" capture="environment" id="barcode-file-input" style="display:none">
+        </label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:var(--sp-sm)">
+          <input type="text" class="form-input" id="manual-barcode" placeholder="Type barcode number…" inputmode="numeric" style="flex:1">
+          <button class="btn btn-primary" id="btn-manual-barcode">Look up</button>
+        </div>
+        <div id="barcode-lookup-result" style="margin-top:var(--sp-sm)"></div>
+      </div>
+    `;
+
+    // File input handler — try BarcodeDetector on the image, then fall back to showing the image
+    qs('#barcode-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if ('BarcodeDetector' in window) {
+        try {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          await new Promise(r => img.onload = r);
+          const detector = new BarcodeDetector({formats: ['ean_13','ean_8','upc_a','upc_e']});
+          const codes = await detector.detect(img);
+          if (codes.length > 0) {
+            lookupBarcode(codes[0].rawValue);
+            return;
+          }
+        } catch {}
+      }
+      // Could not auto-detect — show manual input hint
+      qs('#barcode-lookup-result').innerHTML = '<p style="font-size:12px;color:var(--text-m)">Could not read barcode automatically. Please type it in the box above.</p>';
+    });
+
+    // Manual barcode lookup
+    qs('#btn-manual-barcode').addEventListener('click', () => {
+      const code = qs('#manual-barcode').value.trim();
+      if (!code) { showToast('Enter a barcode number'); return; }
+      closePanel();
+      lookupBarcode(code);
+    });
+  });
 }
 
 function setupFoodAddButtons(container) {
@@ -2379,6 +2587,185 @@ function renderExportPanel() {
   });
 }
 
+// ── APPLE HEALTH IMPORT ──────────────────────────────────────────
+function renderHealthImportPanel() {
+  const el = qs('#panel-health-import-body');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">🍎 Import from Apple Health</div>
+      <p style="font-size:13px;color:var(--text-m);line-height:1.6;margin-bottom:var(--sp-md)">
+        Export your Apple Health data, then import sleep records here.
+      </p>
+      <ol style="font-size:13px;color:var(--text-m);line-height:1.8;padding-left:20px;margin-bottom:var(--sp-md)">
+        <li>Open the <strong>Health app</strong> on your iPhone</li>
+        <li>Tap your profile picture → <strong>Export All Health Data</strong></li>
+        <li>Unzip the downloaded file</li>
+        <li>Upload the <strong>export.xml</strong> file below</li>
+      </ol>
+      <label class="btn btn-outline btn-full" style="cursor:pointer;margin-bottom:var(--sp-sm)">
+        📂 Choose export.xml
+        <input type="file" id="health-xml-input" accept=".xml" style="display:none">
+      </label>
+      <div id="health-import-status"></div>
+    </div>
+
+    <div class="card" id="health-import-preview" style="display:none">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">Preview</div>
+      <div id="health-import-preview-body"></div>
+      <button class="btn btn-primary btn-full" id="btn-confirm-import" style="margin-top:var(--sp-md)">Import Data</button>
+    </div>
+  `;
+
+  let parsedSleepData = [];
+
+  qs('#health-xml-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statusEl = qs('#health-import-status');
+    statusEl.innerHTML = '<p style="font-size:13px;color:var(--text-m)">Parsing file…</p>';
+
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, 'application/xml');
+
+      // Parse sleep records
+      const sleepRecords = [...xml.querySelectorAll('Record[type="HKCategoryTypeIdentifierSleepAnalysis"]')];
+      const sleepByDate = {};
+
+      sleepRecords.forEach(r => {
+        const val = r.getAttribute('value') || '';
+        // Only count "InBed" or "Asleep" values
+        if (!val.includes('Asleep') && !val.includes('InBed')) return;
+        const startStr = r.getAttribute('startDate') || '';
+        const endStr   = r.getAttribute('endDate') || '';
+        if (!startStr || !endStr) return;
+        const start = new Date(startStr);
+        const end   = new Date(endStr);
+        const durationH = (end - start) / 3600000;
+        if (durationH <= 0 || durationH > 16) return;
+        // Use the wake date as the "sleep date"
+        const dateKey = end.toISOString().split('T')[0];
+        if (!sleepByDate[dateKey]) sleepByDate[dateKey] = {total: 0, count: 0, wakeTime: end.toTimeString().slice(0,5)};
+        sleepByDate[dateKey].total += durationH;
+        sleepByDate[dateKey].count++;
+      });
+
+      parsedSleepData = Object.entries(sleepByDate)
+        .map(([date, v]) => ({date, duration: Math.round(v.total * 10) / 10, wakeTime: v.wakeTime}))
+        .filter(d => d.duration > 0 && d.duration <= 14)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-90); // last 90 days
+
+      if (!parsedSleepData.length) {
+        statusEl.innerHTML = '<p style="font-size:13px;color:var(--danger)">No sleep records found in this file.</p>';
+        return;
+      }
+
+      statusEl.innerHTML = '';
+      const previewCard = qs('#health-import-preview');
+      previewCard.style.display = 'block';
+      const sample = parsedSleepData.slice(-5).reverse();
+      qs('#health-import-preview-body').innerHTML = `
+        <p style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-sm)">Found <strong>${parsedSleepData.length}</strong> sleep records. Sample:</p>
+        ${sample.map(d => `
+          <div class="list-item" style="padding:8px 0">
+            <div class="list-content">
+              <div class="list-title">${fmtDate(d.date)}</div>
+              <div class="list-sub">${d.duration}h sleep · Wake ${d.wakeTime}</div>
+            </div>
+          </div>`).join('')}
+        ${parsedSleepData.length > 5 ? `<p style="font-size:12px;color:var(--text-m);margin-top:4px">…and ${parsedSleepData.length - 5} more</p>` : ''}
+      `;
+
+    } catch (err) {
+      qs('#health-import-status').innerHTML = '<p style="font-size:13px;color:var(--danger)">Error reading file. Make sure it\'s the export.xml from Apple Health.</p>';
+    }
+  });
+
+  qs('#panel-health-import-body').addEventListener('click', e => {
+    if (e.target.id !== 'btn-confirm-import') return;
+    let imported = 0;
+    parsedSleepData.forEach(d => {
+      const existing = DB.sleepFor(d.date);
+      if (!existing) {
+        DB.saveSleep(d.date, {bedtime: '', wakeTime: d.wakeTime, duration: d.duration, quality: 3});
+        imported++;
+      }
+    });
+    showToast(`Imported ${imported} sleep records ✓`);
+    closePanel();
+  });
+}
+
+// ── SHARE PROGRESS ───────────────────────────────────────────────
+function renderSharePanel() {
+  const el = qs('#panel-share-body');
+
+  // Build weekly summary text
+  const thisMon = startOfWeek();
+  const attacks = DB.attacks();
+  const weekAtk = attacks.filter(a => a.date >= thisMon).length;
+  const logStreak = getLoggingStreak();
+  const sodStreak = getSodiumStreak();
+  const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
+
+  let sodTotal = 0, sodDays = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = daysAgo(i);
+    const s = DB.totalSodium(d);
+    if (s > 0) { sodTotal += s; sodDays++; }
+  }
+  const avgSodium = sodDays ? Math.round(sodTotal / sodDays) : 0;
+
+  const shareText = [
+    '📊 My Equilibrium Weekly Update',
+    '',
+    `⚡ Attacks this week: ${weekAtk}`,
+    avgSodium > 0 ? `🧂 Avg daily sodium: ${avgSodium}mg (goal: ${sGoal}mg)` : null,
+    `🔥 Logging streak: ${logStreak} days`,
+    sodStreak > 0 ? `🧂 Low-sodium streak: ${sodStreak} days` : null,
+    '',
+    'Tracked with Equilibrium — Ménière\'s Companion',
+  ].filter(l => l !== null).join('\n');
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">This Week</div>
+      <div style="background:var(--surface2);border-radius:var(--r-md);padding:var(--sp-md);font-size:14px;line-height:1.8;white-space:pre-wrap;font-family:var(--font);margin-bottom:var(--sp-md)">${shareText}</div>
+      <button class="btn btn-primary btn-full" id="btn-share-native" style="margin-bottom:8px">📤 Share</button>
+      <button class="btn btn-ghost btn-full" id="btn-share-copy">📋 Copy to Clipboard</button>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">Share with your care team</div>
+      <p style="font-size:13px;color:var(--text-m);line-height:1.6">Send your weekly summary to a family member, caregiver, or doctor to keep them updated on your progress.</p>
+    </div>
+  `;
+
+  qs('#btn-share-native').addEventListener('click', async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({title: 'My Equilibrium Weekly Update', text: shareText});
+      } catch (err) {
+        if (err.name !== 'AbortError') showToast('Could not share');
+      }
+    } else {
+      // Fallback: copy
+      await navigator.clipboard?.writeText(shareText);
+      showToast('Copied to clipboard!');
+    }
+  });
+
+  qs('#btn-share-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      showToast('Copied to clipboard!');
+    } catch {
+      showToast('Could not copy');
+    }
+  });
+}
+
 // ── PUSH NOTIFICATION REMINDERS ──────────────────────────────────
 async function checkNotifications() {
   const s = DB.settings();
@@ -2392,9 +2779,9 @@ async function checkNotifications() {
   const last = DB.g(K.notifLast) || {};
 
   const reminders = [
-    {key:'morning', time: s.notifMorning || '08:00', title:'Morning Check-In', body:'Log your morning wellness and review your plan for the day.'},
-    {key:'med',     time: s.notifMed || '09:00',     title:'Medication Reminder', body:'Time to take your scheduled medications.'},
-    {key:'evening', time: s.notifEvening || '20:00', title:'Evening Log', body:'Log today\'s attacks, food, and how you\'re feeling.'},
+    {key:'morning', action:'wellness', time: s.notifMorning || '08:00', title:'Morning Check-In ☀️', body:'Log your morning wellness and review your plan for the day.'},
+    {key:'med',     action:'log-dose', time: s.notifMed || '09:00',     title:'Medication Reminder 💊', body:'Time to take your scheduled medications.'},
+    {key:'evening', action:'food',     time: s.notifEvening || '20:00', title:'Evening Log 🌙', body:'Log today\'s attacks, food, and how you\'re feeling.'},
   ];
 
   reminders.forEach(r => {
@@ -2404,7 +2791,7 @@ async function checkNotifications() {
     const rMins = rh * 60 + rm;
     const nMins = nh * 60 + nm;
     if (nMins >= rMins && nMins <= rMins + 30) {
-      new Notification(r.title, {body: r.body, icon: './icon-192.png'});
+      new Notification(r.title, {body: r.body, icon: './icon-192.png', data: {url: `./index.html?action=${r.action || ''}`}});
       last[r.key] = todayStr;
       DB.s(K.notifLast, last);
     }
@@ -2449,6 +2836,9 @@ document.addEventListener('click', e => {
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
       case 'settings':    openPanel('panel-settings', renderSettingsPanel); break;
       case 'export':      openPanel('panel-export', renderExportPanel); break;
+      case 'health-import': openPanel('panel-health-import', renderHealthImportPanel); break;
+      case 'share':       openPanel('panel-share', renderSharePanel); break;
+      case 'year-review': openPanel('panel-review', renderReviewPanel); break;
 
       case 'mood': {
         const m = e.target.closest('[data-mood]')?.dataset.mood;
@@ -2526,6 +2916,21 @@ document.addEventListener('click', e => {
   if (heatCell) {
     S.viewDate = heatCell.dataset.heatDate;
     renderSymptoms();
+    return;
+  }
+
+  // Onboarding dismiss
+  if (e.target.id === 'btn-dismiss-onboarding' || e.target.closest('#btn-dismiss-onboarding')) {
+    const state = getOnboardingState();
+    const doneCount = Object.values(state.done).filter(Boolean).length;
+    if (doneCount >= ONBOARDING_TASKS.length) {
+      state.celebrated = true;
+      DB.s(K.onboarding, state);
+    } else {
+      state.startDate = '2000-01-01'; // force hide
+      DB.s(K.onboarding, state);
+    }
+    renderHome();
     return;
   }
 
@@ -2720,6 +3125,181 @@ function initTutorial() {
   });
 }
 
+// ── ANNUAL YEAR-IN-REVIEW ────────────────────────────────────────
+function buildReviewSlides(year) {
+  const yearStart = `${year}-01-01`;
+  const yearEnd   = `${year}-12-31`;
+
+  const attacks = DB.attacks().filter(a => a.date >= yearStart && a.date <= yearEnd);
+  const totalAttacks = attacks.length;
+
+  // Best and worst months
+  const byMonth = {};
+  attacks.forEach(a => {
+    const mo = a.date.slice(0, 7); // YYYY-MM
+    byMonth[mo] = (byMonth[mo] || 0) + 1;
+  });
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthEntries = Object.entries(byMonth).sort((a,b) => b[1] - a[1]);
+  const worstMonth = monthEntries[0] ? {mo: monthEntries[0][0], count: monthEntries[0][1]} : null;
+
+  // Most common symptom
+  const symsCount = {};
+  attacks.forEach(a => (a.symptoms||[]).forEach(s => { symsCount[s] = (symsCount[s]||0)+1; }));
+  const topSymptom = Object.entries(symsCount).sort((a,b)=>b[1]-a[1])[0];
+
+  // Sodium average
+  const sodiumLog = DB.sodiumLog();
+  let sodTotal = 0, sodDays = 0;
+  Object.keys(sodiumLog).filter(d => d >= yearStart && d <= yearEnd).forEach(d => {
+    const s = DB.totalSodium(d);
+    if (s > 0) { sodTotal += s; sodDays++; }
+  });
+  const avgSodium = sodDays ? Math.round(sodTotal / sodDays) : 0;
+
+  // Logging streak (best)
+  let bestStreak = 0, currentStreak = 0;
+  for (let i = 0; i <= 365; i++) {
+    const d = new Date(yearStart + 'T12:00:00');
+    d.setDate(d.getDate() + i);
+    const ds = d.toISOString().split('T')[0];
+    if (ds > yearEnd) break;
+    if (hasDataForDate(ds)) { currentStreak++; bestStreak = Math.max(bestStreak, currentStreak); }
+    else currentStreak = 0;
+  }
+
+  // Days logged
+  const daysLogged = Object.keys({
+    ...Object.fromEntries((DB.g(K.stress)||{}) ? Object.entries(DB.g(K.stress)||{}) : []),
+    ...Object.fromEntries((DB.g(K.sleep)||{}) ? Object.entries(DB.g(K.sleep)||{}) : []),
+    ...Object.fromEntries(Object.keys(sodiumLog).map(k => [k, 1])),
+  }).filter(d => d >= yearStart && d <= yearEnd).length;
+
+  const slides = [
+    {
+      bg: 'linear-gradient(135deg, #5B9B8A 0%, #3D7A6A 100%)',
+      emoji: '🌊',
+      headline: `${year} in Review`,
+      sub: `Your year managing Ménière's with Equilibrium`,
+      stat: null,
+    },
+    {
+      bg: 'linear-gradient(135deg, #E07070 0%, #B84040 100%)',
+      emoji: '⚡',
+      headline: `${totalAttacks} attacks tracked`,
+      sub: totalAttacks === 0 ? 'An incredible attack-free year!' : totalAttacks < 20 ? 'A year of resilience' : 'Every log was a step toward understanding your triggers',
+      stat: totalAttacks > 0 && worstMonth ? `Toughest month: ${monthNames[parseInt(worstMonth.mo.split('-')[1])-1]} (${worstMonth.count} attacks)` : null,
+    },
+    {
+      bg: 'linear-gradient(135deg, #6DB87A 0%, #3D8A50 100%)',
+      emoji: '🔥',
+      headline: `${bestStreak}-day streak`,
+      sub: bestStreak > 0 ? `That was your longest logging streak this year` : 'Start your streak this year',
+      stat: daysLogged > 0 ? `${daysLogged} total days logged` : null,
+    },
+    {
+      bg: 'linear-gradient(135deg, #E8A87C 0%, #C07840 100%)',
+      emoji: '🧂',
+      headline: avgSodium > 0 ? `${avgSodium}mg avg sodium` : 'Start tracking sodium',
+      sub: avgSodium > 0
+        ? avgSodium <= (DB.settings().sodiumGoal || 1500) ? '✅ Under your daily goal on average!' : 'Keep working toward your sodium goal'
+        : 'Tracking sodium helps identify triggers',
+      stat: avgSodium > 0 ? `${sodDays} days of food logging` : null,
+    },
+    ...(topSymptom ? [{
+      bg: 'linear-gradient(135deg, #7B8FD8 0%, #4A5CB0 100%)',
+      emoji: '📊',
+      headline: `Most common: ${topSymptom[0]}`,
+      sub: `Appeared in ${topSymptom[1]} attack${topSymptom[1]>1?'s':''} this year`,
+      stat: `Tracked ${Object.keys(symsCount).length} different symptom type${Object.keys(symsCount).length>1?'s':''}`,
+    }] : []),
+    {
+      bg: 'linear-gradient(135deg, #5B9B8A 0%, #3D7A6A 100%)',
+      emoji: '💙',
+      headline: 'You showed up',
+      sub: 'Every day you tracked, you gave yourself — and your doctor — powerful information. Keep going.',
+      stat: null,
+    },
+  ];
+
+  return slides;
+}
+
+const YearReview = {
+  current: 0,
+  slides: [],
+
+  show(year) {
+    this.slides = buildReviewSlides(year || new Date().getFullYear() - 1);
+    this.current = 0;
+    qs('#review-overlay').classList.remove('hidden');
+    this.render();
+  },
+
+  hide() {
+    qs('#review-overlay').classList.add('hidden');
+  },
+
+  render() {
+    const slide = this.slides[this.current];
+    const total = this.slides.length;
+    const isLast = this.current === total - 1;
+
+    qs('#review-slide').innerHTML = `
+      <div class="review-slide" style="background:${slide.bg}">
+        <div class="review-emoji">${slide.emoji}</div>
+        <div class="review-headline">${slide.headline}</div>
+        <div class="review-sub">${slide.sub}</div>
+        ${slide.stat ? `<div class="review-stat">${slide.stat}</div>` : ''}
+      </div>
+    `;
+
+    qs('#review-dots').innerHTML = this.slides.map((_, i) =>
+      `<div class="review-dot${i === this.current ? ' active' : ''}"></div>`
+    ).join('');
+
+    qs('#btn-review-prev').style.visibility = this.current > 0 ? 'visible' : 'hidden';
+    qs('#btn-review-next').textContent = isLast ? '🎉 Done' : 'Next →';
+  },
+};
+
+function initYearReview() {
+  qs('#btn-review-skip').addEventListener('click', () => YearReview.hide());
+  qs('#btn-review-next').addEventListener('click', () => {
+    if (YearReview.current < YearReview.slides.length - 1) {
+      YearReview.current++;
+      YearReview.render();
+    } else {
+      YearReview.hide();
+    }
+  });
+  qs('#btn-review-prev').addEventListener('click', () => {
+    if (YearReview.current > 0) { YearReview.current--; YearReview.render(); }
+  });
+}
+
+function renderReviewPanel() {
+  const currentYear = new Date().getFullYear();
+  const el = qs('#panel-review-body');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">🌟 Your Year in Review</div>
+      <p style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-md)">See a beautiful summary of your health journey over the past year.</p>
+      <button class="btn btn-primary btn-full" id="btn-start-review-${currentYear - 1}">View ${currentYear - 1} Review</button>
+      ${currentYear === new Date().getFullYear() && new Date().getMonth() >= 6 ? `
+        <button class="btn btn-ghost btn-full" id="btn-start-review-${currentYear}" style="margin-top:8px">View ${currentYear} So Far</button>
+      ` : ''}
+    </div>
+  `;
+  el.addEventListener('click', e => {
+    const btn = e.target.closest('[id^="btn-start-review-"]');
+    if (!btn) return;
+    const year = parseInt(btn.id.replace('btn-start-review-',''));
+    closePanel();
+    setTimeout(() => YearReview.show(year), 200);
+  });
+}
+
 // ── WEEKLY SUMMARY ───────────────────────────────────────────────
 function showWeeklySummary() {
   const now = new Date();
@@ -2829,6 +3409,27 @@ function init() {
   // Initial render
   switchTab('home');
 
+  // Handle URL action params (from shortcuts or notification deep links)
+  const urlAction = new URLSearchParams(location.search).get('action');
+  if (urlAction) {
+    setTimeout(() => {
+      switch(urlAction) {
+        case 'food':
+          renderFoodSearch();
+          break;
+        case 'attack':
+          switchTab('symptoms');
+          break;
+        case 'wellness':
+          switchTab('wellness');
+          break;
+        case 'log-dose':
+          openPanel('panel-medications', renderMedicationsPanel);
+          break;
+      }
+    }, 300);
+  }
+
   // Show tutorial on first launch
   if (!localStorage.getItem(K.tutorialSeen)) {
     setTimeout(() => Tutorial.show(), 400);
@@ -2843,6 +3444,15 @@ function init() {
       setTimeout(() => showWeeklySummary(), 600);
     }
   }
+
+  // Show year-in-review on Jan 1
+  const todayStr2 = today();
+  const reviewKey = `eq_review_shown_${new Date().getFullYear()-1}`;
+  if (todayStr2.endsWith('-01-01') && !localStorage.getItem(reviewKey)) {
+    localStorage.setItem(reviewKey, '1');
+    setTimeout(() => YearReview.show(new Date().getFullYear() - 1), 1200);
+  }
+  initYearReview();
 
   // Check notifications
   checkNotifications();

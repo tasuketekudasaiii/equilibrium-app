@@ -1,4 +1,4 @@
-const CACHE = 'equilibrium-v7';
+const CACHE = 'equilibrium-v8';
 const STATIC = [
   './index.html',
   './app.css',
@@ -34,12 +34,18 @@ self.addEventListener('activate', e => {
 // Notification click: focus or open the app
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const actionUrl = e.notification.data?.url || './';
   e.waitUntil(
     clients.matchAll({type:'window', includeUncontrolled:true}).then(list => {
       for (const c of list) {
-        if (c.url && 'focus' in c) return c.focus();
+        if (c.url && 'focus' in c) {
+          c.focus();
+          // Navigate to the action URL
+          if (actionUrl !== './' && 'navigate' in c) c.navigate(actionUrl);
+          return;
+        }
       }
-      if (clients.openWindow) return clients.openWindow('./');
+      if (clients.openWindow) return clients.openWindow(actionUrl);
     })
   );
 });

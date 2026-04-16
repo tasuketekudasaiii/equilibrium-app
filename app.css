@@ -713,3 +713,58 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
   pointer-events: none;
 }
+
+/* ── Feature: Weather stats ── */
+.weather-stat { text-align: center; }
+.weather-val { font-size: 28px; font-weight: 800; color: var(--p); line-height: 1; }
+.weather-unit { font-size: 14px; font-weight: 600; }
+.weather-lbl { font-size: 11px; color: var(--text-m); margin-top: 2px; font-weight: 600; }
+
+/* ── Feature: Onboarding checklist ── */
+.onboarding-progress { height: 6px; background: var(--surface3); border-radius: var(--r-f); margin: var(--sp-sm) 0; overflow: hidden; }
+.onboarding-bar { height: 100%; background: var(--p); border-radius: var(--r-f); transition: width 0.5s ease; }
+.onboarding-task { display: flex; align-items: flex-start; gap: var(--sp-sm); padding: 8px 0; border-bottom: 1px solid var(--border); }
+.onboarding-task:last-child { border-bottom: none; }
+.onboarding-task.done .onboarding-label { text-decoration: line-through; color: var(--text-m); }
+.onboarding-check { width: 22px; height: 22px; border-radius: var(--r-f); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; margin-top: 2px; }
+.onboarding-task.done .onboarding-check { background: var(--success); border-color: var(--success); color: white; }
+.onboarding-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.onboarding-desc { font-size: 12px; color: var(--text-m); margin-top: 1px; line-height: 1.4; }
+
+/* ── Feature: Year in Review ── */
+.review-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: #0F1F1C;
+  display: flex; align-items: flex-end; justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.review-overlay.hidden { opacity: 0; pointer-events: none; }
+.review-overlay:not(.hidden) { opacity: 1; }
+.review-modal {
+  width: 100%; max-width: 430px;
+  padding: var(--sp-sm) var(--sp-md) calc(var(--sp-lg) + var(--safe-b));
+  position: relative;
+}
+.review-skip {
+  position: absolute; top: var(--sp-md); right: var(--sp-md);
+  font-size: 13px; color: rgba(255,255,255,0.6); padding: 4px 10px;
+  border-radius: var(--r-f); border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+}
+.review-slide {
+  border-radius: var(--r-xl); padding: var(--sp-xl) var(--sp-lg);
+  text-align: center; min-height: 340px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin-bottom: var(--sp-md);
+}
+.review-emoji { font-size: 56px; margin-bottom: var(--sp-md); }
+.review-headline { font-size: 26px; font-weight: 800; color: white; margin-bottom: var(--sp-sm); line-height: 1.2; }
+.review-sub { font-size: 15px; color: rgba(255,255,255,0.85); line-height: 1.6; margin-bottom: var(--sp-sm); }
+.review-stat { font-size: 13px; color: rgba(255,255,255,0.65); background: rgba(0,0,0,0.2); padding: 6px 16px; border-radius: var(--r-f); margin-top: var(--sp-sm); }
+.review-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: var(--sp-md); }
+.review-dot { width: 6px; height: 6px; border-radius: var(--r-f); background: rgba(255,255,255,0.3); transition: all 0.2s; }
+.review-dot.active { width: 18px; background: white; }
+.review-nav { display: flex; align-items: center; justify-content: space-between; }
+
+/* ── Feature: Scanner fallback ── */
+.scanner-fallback-card { background: var(--surface2); border-radius: var(--r-lg); padding: var(--sp-md); margin-bottom: var(--sp-sm); }
