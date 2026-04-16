@@ -746,11 +746,11 @@ function renderLogAttackPanel(prefillStart) {
   const elapsedMin  = prefillStart ? Math.max(0, Math.round((Date.now() - new Date(prefillStart)) / 60000)) : 0;
   const prefillH    = Math.min(23, Math.floor(elapsedMin / 60));
   const prefillMRaw = elapsedMin % 60;
-  const prefillM    = Math.round(prefillMRaw / 5) * 5 >= 60 ? 55 : Math.round(prefillMRaw / 5) * 5;
+  const prefillM    = Math.min(59, prefillMRaw);
 
   const hourOpts = Array.from({length:24}, (_,i) =>
     `<option value="${i}"${i===prefillH?' selected':''}>${i}h</option>`).join('');
-  const minOpts  = [0,5,10,15,20,25,30,35,40,45,50,55].map(m =>
+  const minOpts  = Array.from({length:60}, (_,m) =>
     `<option value="${m}"${m===prefillM?' selected':''}>${m}m</option>`).join('');
 
   bodyEl.innerHTML = `
@@ -1857,20 +1857,31 @@ ${e.name||e.doctor ? `<div style="background:#EBF5F2;border-radius:12px;padding:
 <h2>Attack Frequency (${days} days)</h2>
 <div>${atkSVG}</div>
 <div class="chart-label"><span>${fmtDate(from)}</span><span>${fmtDate(to)}</span></div>
-${attacks.length > 0 ? `
+${(() => {
+  if (!attacks.length) return '<p style="color:#6B8A83;font-size:14px;margin-top:8px">No attacks logged in this period.</p>';
+  const pressureLog = DB.g(K.pressure) || [];
+  const pressureMap = {};
+  pressureLog.forEach(p => { pressureMap[p.date] = p; });
+  return `
 <table style="margin-top:16px">
-  <tr><th>Date</th><th>Intensity</th><th>Duration</th><th>Symptoms</th><th>Meds Taken</th></tr>
-  ${attacks.slice(0,15).map(a=>`
-  <tr>
+  <tr><th>Date</th><th>Intensity</th><th>Duration</th><th>Symptoms</th><th>Pressure</th><th>Meds Taken</th></tr>
+  ${attacks.slice(0,15).map(a => {
+    const pEntry = pressureMap[a.date];
+    const pressureCell = pEntry
+      ? `${pEntry.hpa} hPa${pEntry.humidity != null ? ` · ${pEntry.humidity}%` : ''}${pEntry.hpa < 1010 ? ' ⚠️' : ''}`
+      : '—';
+    return `<tr>
     <td>${fmtDate(a.date)}</td>
     <td><span class="badge ${a.intensity>=7?'badge-red':a.intensity>=4?'badge-yellow':'badge-green'}">${a.intensity}/10</span></td>
     <td>${a.duration ? fmtDur(a.duration) : '—'}</td>
     <td style="color:#6B8A83">${(a.symptoms||[]).join(', ')||'—'}</td>
+    <td style="color:#6B8A83;white-space:nowrap">${pressureCell}</td>
     <td>${a.medsTaken===true?'✓ Yes':a.medsTaken===false?'✗ No':'—'}</td>
-  </tr>`).join('')}
+  </tr>`;
+  }).join('')}
 </table>
-${attacks.length > 15 ? `<p style="font-size:12px;color:#aaa;margin-top:8px">+ ${attacks.length-15} more attacks not shown</p>` : ''}
-` : '<p style="color:#6B8A83;font-size:14px;margin-top:8px">No attacks logged in this period.</p>'}
+${attacks.length > 15 ? `<p style="font-size:12px;color:#aaa;margin-top:8px">+ ${attacks.length-15} more attacks not shown</p>` : ''}`;
+})()}
 
 <!-- Sodium chart -->
 <h2>Daily Sodium Intake (${days} days)</h2>
