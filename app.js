@@ -1280,7 +1280,7 @@ function renderMore() {
       <div class="more-icon" style="background:#E8F7EA">📋</div>
       <div class="more-content">
         <div class="more-title">Doctor Report</div>
-        <div class="more-sub">30-day summary for your next visit</div>
+        <div class="more-sub">Custom date range summary for your next visit</div>
       </div>
       <div class="more-arrow">›</div>
     </div>
