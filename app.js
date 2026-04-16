@@ -1313,14 +1313,7 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
-    <div class="more-item" data-action="year-review">
-      <div class="more-icon" style="background:#FFF3E0">🌟</div>
-      <div class="more-content">
-        <div class="more-title">Year in Review</div>
-        <div class="more-sub">Your health journey, beautifully summarized</div>
-      </div>
-      <div class="more-arrow">›</div>
-    </div>
+    <!-- Year in Review — re-enable Jan 1 next year -->
 
     <div class="more-item" data-action="about">
       <div class="more-icon" style="background:#EEF0FF">ℹ️</div>
@@ -1633,22 +1626,93 @@ function renderTriggersPanel() {
 // ── DOCTOR REPORT PANEL ────────────────────────────────────────────
 function renderReportPanel() {
   const el = qs('#panel-report-body');
+  const defaultTo   = today();
+  const defaultFrom = daysAgo(29); // 30-day default
+
   el.innerHTML = `
-    <p style="font-size:14px;color:var(--text-m);line-height:1.6;margin-bottom:var(--sp-md)">
-      Generate a beautiful 30-day health summary you can save as a PDF and share with your doctor.
+    <p style="font-size:14px;color:var(--text-m);line-height:1.6;margin-bottom:var(--sp-lg)">
+      Choose the date range you want to include in the report, then open it to save as PDF or print.
     </p>
-    <button class="btn btn-primary btn-full" id="btn-open-report" style="margin-bottom:var(--sp-sm)">
-      📄 Open Printable Report
-    </button>
-    <p style="font-size:12px;color:var(--text-m);text-align:center">Opens in a new tab · Use <strong>File → Print → Save as PDF</strong></p>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-md)">📅 Report Period</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-md);margin-bottom:var(--sp-md)">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">From</label>
+          <input type="date" class="form-input" id="report-from" value="${defaultFrom}" max="${defaultTo}">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">To</label>
+          <input type="date" class="form-input" id="report-to" value="${defaultTo}" max="${defaultTo}">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:var(--sp-sm);flex-wrap:wrap;margin-bottom:var(--sp-md)">
+        <button class="btn btn-ghost btn-sm" data-preset="7">Last 7 days</button>
+        <button class="btn btn-ghost btn-sm" data-preset="30">Last 30 days</button>
+        <button class="btn btn-ghost btn-sm" data-preset="60">Last 60 days</button>
+        <button class="btn btn-ghost btn-sm" data-preset="90">Last 90 days</button>
+      </div>
+
+      <div id="report-range-summary" style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-md)"></div>
+
+      <button class="btn btn-primary btn-full" id="btn-open-report">
+        📄 Open Printable Report
+      </button>
+      <p style="font-size:12px;color:var(--text-m);text-align:center;margin-top:8px">Opens in a new tab · Use <strong>File → Print → Save as PDF</strong></p>
+    </div>
   `;
-  qs('#btn-open-report').addEventListener('click', openPrintReport);
+
+  function updateSummary() {
+    const from = qs('#report-from').value;
+    const to   = qs('#report-to').value;
+    if (!from || !to || from > to) {
+      qs('#report-range-summary').textContent = '⚠️ Invalid range — "From" must be before "To"';
+      return;
+    }
+    const days = dateDiff(from, to) + 1;
+    const attacks = DB.attacks().filter(a => a.date >= from && a.date <= to).length;
+    qs('#report-range-summary').textContent = `${days} day${days!==1?'s':''} · ${attacks} attack${attacks!==1?'s':''} in this period`;
+  }
+
+  updateSummary();
+  qs('#report-from').addEventListener('change', updateSummary);
+  qs('#report-to').addEventListener('change', updateSummary);
+
+  // Preset buttons
+  el.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.preset);
+      qs('#report-from').value = daysAgo(n - 1);
+      qs('#report-to').value   = today();
+      updateSummary();
+    });
+  });
+
+  qs('#btn-open-report').addEventListener('click', () => {
+    const from = qs('#report-from').value;
+    const to   = qs('#report-to').value;
+    if (!from || !to || from > to) { showToast('Fix the date range first'); return; }
+    openPrintReport(from, to);
+  });
 }
 
-function openPrintReport() {
-  const days = 30;
-  const from = daysAgo(days);
-  const attacks = DB.attacks().filter(a => a.date >= from);
+function openPrintReport(from, to) {
+  if (!from) from = daysAgo(29);
+  if (!to)   to   = today();
+
+  // Build an ordered array of all dates in the range
+  const rangeDates = [];
+  let cur = new Date(from + 'T12:00:00');
+  const end = new Date(to + 'T12:00:00');
+  while (cur <= end) {
+    rangeDates.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  const days = rangeDates.length;
+
+  const attacks = DB.attacks().filter(a => a.date >= from && a.date <= to);
   const avgIntensity = attacks.length ? (attacks.reduce((s,a)=>s+a.intensity,0)/attacks.length).toFixed(1) : '—';
   const avgDuration  = attacks.length ? Math.round(attacks.reduce((s,a)=>s+(a.duration||0),0)/attacks.length) : null;
   const sGoal = DB.settings().sodiumGoal || SODIUM_GOAL;
@@ -1659,8 +1723,7 @@ function openPrintReport() {
   const dailyAttacks = [];
   const dailySodium  = [];
 
-  for (let i = days-1; i >= 0; i--) {
-    const d = daysAgo(i);
+  for (const d of rangeDates) {
     const sod = DB.totalSodium(d);
     const sl  = DB.sleepFor(d);
     const str = DB.stressFor(d);
@@ -1678,8 +1741,8 @@ function openPrintReport() {
 
   const meds = DB.meds();
   let totalDoses=0, takenDoses=0;
-  for (let i=0;i<days;i++) {
-    const d=daysAgo(i), doses=DB.dosesFor(d);
+  for (const d of rangeDates) {
+    const doses=DB.dosesFor(d);
     meds.forEach(m=>(m.times||[]).forEach(time=>{
       totalDoses++;
       if (doses.find(dd=>dd.medId===m.id&&dd.time===time&&dd.taken)) takenDoses++;
@@ -1770,7 +1833,7 @@ function openPrintReport() {
   <div style="text-align:right">
     <div style="font-size:18px;font-weight:700;color:#1A2B26">Health Report</div>
     <div style="font-size:12px;color:#6B8A83">${reportDate}</div>
-    <div style="font-size:12px;color:#6B8A83">30-day period</div>
+    <div style="font-size:12px;color:#6B8A83">${fmtDate(from)} — ${fmtDate(to)} (${days} days)</div>
   </div>
 </div>
 
@@ -1782,7 +1845,7 @@ ${e.name||e.doctor ? `<div style="background:#EBF5F2;border-radius:12px;padding:
 </div>` : ''}
 
 <!-- Stats -->
-<h2>30-Day Summary</h2>
+<h2>${days}-Day Summary</h2>
 <div class="stat-grid">
   ${statBox('⚡', attacks.length, 'Attacks', attacks.length===0?'Attack-free period':attacks.length>=5?'Frequent episodes':'', attacks.length>=5?'#E07070':attacks.length>=2?'#F0C060':'#6DB87A')}
   ${statBox('🧂', avgSodium ? avgSodium+'mg' : '—', 'Avg Sodium/day', avgSodium ? (avgSodium > sGoal ? '⚠️ Over goal' : '✓ Under goal') : 'No data', avgSodium && avgSodium > sGoal ? '#E07070' : '#5B9B8A')}
@@ -1791,9 +1854,9 @@ ${e.name||e.doctor ? `<div style="background:#EBF5F2;border-radius:12px;padding:
 </div>
 
 <!-- Attack chart -->
-<h2>Attack Frequency (30 days)</h2>
+<h2>Attack Frequency (${days} days)</h2>
 <div>${atkSVG}</div>
-<div class="chart-label"><span>${daysAgo(days-1)}</span><span>Today</span></div>
+<div class="chart-label"><span>${fmtDate(from)}</span><span>${fmtDate(to)}</span></div>
 ${attacks.length > 0 ? `
 <table style="margin-top:16px">
   <tr><th>Date</th><th>Intensity</th><th>Duration</th><th>Symptoms</th><th>Meds Taken</th></tr>
@@ -1810,12 +1873,12 @@ ${attacks.length > 15 ? `<p style="font-size:12px;color:#aaa;margin-top:8px">+ $
 ` : '<p style="color:#6B8A83;font-size:14px;margin-top:8px">No attacks logged in this period.</p>'}
 
 <!-- Sodium chart -->
-<h2>Daily Sodium Intake (30 days)</h2>
+<h2>Daily Sodium Intake (${days} days)</h2>
 <div>${sodSVG}</div>
 <div class="chart-label">
-  <span>${daysAgo(days-1)}</span>
+  <span>${fmtDate(from)}</span>
   <span style="color:#E07070">Goal: ${sGoal}mg/day · ${sodiumOverGoal} days over goal</span>
-  <span>Today</span>
+  <span>${fmtDate(to)}</span>
 </div>
 
 <!-- Sleep & Stress -->
@@ -3260,8 +3323,22 @@ function init() {
   // Check notifications
   checkNotifications();
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) checkNotifications();
+    if (!document.hidden) {
+      // If the calendar day changed while the app was in the background,
+      // reset viewDate to today so all counters (water, sodium, food, caff) refresh
+      const newDay = today();
+      if (S.viewDate !== newDay && S.viewDate === _lastRenderedDate) {
+        S.viewDate = newDay;
+        const renders = {home:renderHome, symptoms:renderSymptoms, diet:renderDiet, wellness:renderWellness};
+        renders[S.tab]?.();
+      }
+      _lastRenderedDate = today();
+      checkNotifications();
+    }
   });
 }
+
+// Tracks the last "today" date we rendered, so we can detect a day rollover
+let _lastRenderedDate = today();
 
 document.addEventListener('DOMContentLoaded', init);
