@@ -7,7 +7,7 @@
    app re-renders normally — zero changes to core app logic.
    ================================================================ */
 
-const FireSync = (() => {
+window.FireSync = (() => {
 
   const firebaseConfig = {
     apiKey: "AIzaSyDuZCiieKB9Sj79LLenPLE17qZpyQOFkE8",
