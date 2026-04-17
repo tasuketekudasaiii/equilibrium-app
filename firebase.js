@@ -138,13 +138,23 @@ window.FireSync = (() => {
       : 'Sign in to back up your data';
   }
 
-  // ── Google sign-in (redirect — works in PWA/iOS/Android) ────────
+  // ── Google sign-in (popup → redirect fallback) ──────────────────
   async function signInGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
-      await auth.signInWithRedirect(provider);
+      // Popup works on desktop + mobile Chrome
+      await auth.signInWithPopup(provider);
     } catch (e) {
-      showToast('Sign in failed — try again');
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+        // Popup blocked (common in PWA/iOS) — fall back to redirect
+        try {
+          await auth.signInWithRedirect(provider);
+        } catch (e2) {
+          showToast('Sign in failed — try again');
+        }
+      } else if (e.code !== 'auth/cancelled-popup-request') {
+        showToast('Sign in failed — try again');
+      }
     }
   }
 
@@ -155,7 +165,7 @@ window.FireSync = (() => {
     }
   }).catch(e => {
     if (e.code && e.code !== 'auth/no-auth-event') {
-      showToast('Google sign-in failed — try again');
+      console.warn('[FireSync] redirect result error:', e.code);
     }
   });
 
