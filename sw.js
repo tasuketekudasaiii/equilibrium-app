@@ -1,4 +1,4 @@
-const CACHE = 'equilibrium-v8';
+const CACHE = 'equilibrium-v9';
 const STATIC = [
   './index.html',
   './app.css',
@@ -50,14 +50,14 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
-// Fetch: network-first for app files so updates are always picked up.
-// Falls back to cache when offline.
+// Fetch: network-first for GET requests only.
+// POST requests (Firebase/Firestore) are never intercepted.
 self.addEventListener('fetch', e => {
-  // Only handle same-origin requests
-  if (!e.request.url.startsWith(self.location.origin)) {
-    e.respondWith(fetch(e.request));
-    return;
-  }
+  // Never intercept non-GET requests — Cache API doesn't support POST
+  if (e.request.method !== 'GET') return;
+
+  // Never intercept cross-origin requests — let browser handle Firebase/CDN natively
+  if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
     fetch(e.request)
