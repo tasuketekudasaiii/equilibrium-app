@@ -3517,6 +3517,10 @@ function init() {
 
   // Check notifications
   checkNotifications();
+
+  // Schedule automatic reset at midnight
+  scheduleMidnightRollover();
+
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       // If the calendar day changed while the app was in the background,
@@ -3535,5 +3539,21 @@ function init() {
 
 // Tracks the last "today" date we rendered, so we can detect a day rollover
 let _lastRenderedDate = today();
+
+// ── Midnight rollover — fires exactly when the clock hits 00:00 ───
+function scheduleMidnightRollover() {
+  const now  = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 100); // next midnight + 100ms buffer
+  const msUntil = midnight - now;
+  setTimeout(() => {
+    // Reset viewDate to the new day so all counters refresh
+    S.viewDate = today();
+    _lastRenderedDate = today();
+    const renders = { home:renderHome, symptoms:renderSymptoms, diet:renderDiet, wellness:renderWellness };
+    renders[S.tab]?.();
+    scheduleMidnightRollover(); // reschedule for the next day
+  }, msUntil);
+}
 
 document.addEventListener('DOMContentLoaded', init);
