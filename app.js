@@ -1457,13 +1457,12 @@ function renderAccountPanel() {
     `;
 
     qs('#btn-google-signin').addEventListener('click', async () => {
-      await window.FireSync.signInGoogle();
-      // If popup succeeded, _user is set immediately — close panel and confirm
-      if (window.FireSync.isSignedIn()) {
-        showToast('Signed in ✓');
+      const ok = await window.FireSync.signInGoogle();
+      if (ok) {
+        const name = window.FireSync.getUser()?.displayName || window.FireSync.getUser()?.email || '';
+        showToast(`Welcome, ${name.split('@')[0] || 'you'} ✓`);
         closePanel();
       }
-      // If redirect was triggered instead, page will navigate away automatically
     });
 
     qs('#btn-email-auth').addEventListener('click', async () => {

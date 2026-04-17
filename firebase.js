@@ -116,21 +116,20 @@ window.FireSync = (() => {
 
   // ── Auth state listener ──────────────────────────────────────────
   auth.onAuthStateChanged(async user => {
+    console.log('[FireSync] auth state changed:', user?.email || 'signed out');
     _user = user;
     _initialized = true;
 
     // Update UI immediately — don't wait for cloud data
-    rerender();
     updateAccountBadge();
+    try { rerender(); } catch(e) { console.warn('[FireSync] rerender error:', e); }
 
     if (user) {
       // Load/migrate cloud data in the background
       const hadCloudData = await loadFromCloud();
-      if (!hadCloudData) {
-        await migrateLocalToCloud();
-      }
-      // Re-render again now that data is loaded
-      rerender();
+      if (!hadCloudData) await migrateLocalToCloud();
+      // Re-render once more with fresh data
+      try { rerender(); } catch(e) {}
     }
   });
 
@@ -157,23 +156,37 @@ window.FireSync = (() => {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
       const result = await auth.signInWithPopup(provider);
-      // Immediately update state from popup result — don't wait for onAuthStateChanged
-      if (result.user) {
+      console.log('[FireSync] popup result:', result?.user?.email);
+      if (result && result.user) {
         _user = result.user;
-        updateAccountBadge();
-        rerender();
+        applySignedInUI();
+        return true;
       }
     } catch (e) {
-      // User deliberately closed the popup — silent exit
+      console.warn('[FireSync] popup error:', e.code, e.message);
       if (e.code === 'auth/popup-closed-by-user' ||
-          e.code === 'auth/cancelled-popup-request') return;
-      // Any other failure (blocked, unsupported env on iOS, etc.) → redirect
+          e.code === 'auth/cancelled-popup-request') return false;
+      // Any other failure → try redirect
       try {
         await auth.signInWithRedirect(provider);
       } catch (e2) {
+        console.warn('[FireSync] redirect error:', e2);
         showToast('Sign in failed — try again');
       }
     }
+    return false;
+  }
+
+  // ── Apply signed-in UI immediately ───────────────────────────────
+  function applySignedInUI() {
+    updateAccountBadge();
+    try { renderHome?.(); } catch(e) { console.warn('[FireSync] renderHome error:', e); }
+    try { renderMore?.(); } catch(e) { console.warn('[FireSync] renderMore error:', e); }
+    try {
+      if (document.getElementById('panel-account')?.classList.contains('open')) {
+        renderAccountPanel?.();
+      }
+    } catch(e) { console.warn('[FireSync] renderAccountPanel error:', e); }
   }
 
   // ── Handle redirect result on page load ─────────────────────────
