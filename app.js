@@ -3084,7 +3084,7 @@ document.addEventListener('submit', e => {
 });
 
 // ── TUTORIAL ──────────────────────────────────────────────────────
-const TUTORIAL_VERSION = 2; // bump this whenever tutorial content changes
+const TUTORIAL_VERSION = 3; // bump this whenever tutorial content changes
 
 const TUTORIAL_STEPS = [
   {
@@ -3120,7 +3120,7 @@ const TUTORIAL_STEPS = [
   {
     icon: '📋',
     title: 'Doctor Report',
-    body: 'Under More → <strong>Doctor Report</strong>, choose any date range and generate a full summary: attack history with barometric pressure readings, sodium averages, sleep, stress, and medications. <strong>Copy it with one tap</strong> and paste it directly into a message to your doctor.',
+    body: 'Under More → <strong>Doctor Report</strong>, choose any date range and generate a beautiful PDF summary: attack history with barometric pressure readings, sodium averages, sleep, stress, and medications. <strong>Print it, download it, or send it</strong> directly to your doctor.',
   },
   {
     icon: '📱',
