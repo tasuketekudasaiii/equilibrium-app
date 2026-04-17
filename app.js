@@ -1404,7 +1404,12 @@ function renderAccountPanel() {
         </div>
         <div style="font-size:18px;font-weight:800;margin-bottom:4px">${user.displayName || 'Account'}</div>
         <div style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-lg)">${user.email || ''}</div>
-        <div class="pill pill-success" style="margin-bottom:var(--sp-lg)">☁️ Data syncing to cloud</div>
+        ${user.emailVerified
+          ? `<div class="pill pill-success" style="margin-bottom:var(--sp-lg)">☁️ Data syncing to cloud</div>`
+          : `<div class="pill" style="background:var(--warning-light);color:#8a6000;margin-bottom:var(--sp-sm)">⚠️ Email not verified</div>
+             <p style="font-size:12px;color:var(--text-m);margin-bottom:var(--sp-lg)">Check your inbox and click the verification link to secure your account.</p>
+             <button class="btn btn-outline btn-full btn-sm" id="btn-resend-verify" style="margin-bottom:var(--sp-md)">Resend verification email</button>`
+        }
         <button class="btn btn-outline btn-full" id="btn-sign-out">Sign out</button>
       </div>
       <div class="card">
@@ -1412,6 +1417,13 @@ function renderAccountPanel() {
         <p style="font-size:13px;color:var(--text-m);line-height:1.6">Your health data is stored securely in your personal account. Only you can access it. Equilibrium cannot read your data.</p>
       </div>
     `;
+    qs('#btn-resend-verify')?.addEventListener('click', async () => {
+      try {
+        await window.FireSync.getUser().sendEmailVerification();
+        showToast('Verification email sent 📧');
+      } catch { showToast('Could not send email — try again shortly'); }
+    });
+
     qs('#btn-sign-out').addEventListener('click', async () => {
       if (confirm('Sign out? Your data is safely backed up in the cloud.')) {
         await window.FireSync.signOut();

@@ -221,10 +221,14 @@ window.FireSync = (() => {
   async function createAccount(email, password, name) {
     try {
       const cred = await auth.createUserWithEmailAndPassword(email, password);
-      // Save the display name immediately
       if (name && cred.user) {
         await cred.user.updateProfile({ displayName: name });
-        _user = auth.currentUser; // refresh with updated profile
+        _user = auth.currentUser;
+      }
+      // Send verification email
+      if (cred.user) {
+        await cred.user.sendEmailVerification();
+        showToast('Check your email to verify your account 📧');
       }
       return true;
     } catch (e) {
