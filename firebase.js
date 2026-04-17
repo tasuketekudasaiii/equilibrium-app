@@ -107,6 +107,10 @@ window.FireSync = (() => {
         diet: renderDiet, wellness: renderWellness, more: renderMore,
       };
       renders[S?.tab]?.();
+      // If account panel is open, refresh it so it shows signed-in state
+      if (document.getElementById('panel-account')?.classList.contains('open')) {
+        renderAccountPanel?.();
+      }
     } catch {}
   }
 
@@ -129,30 +133,37 @@ window.FireSync = (() => {
     }
   });
 
-  // ── Update the account icon/badge in More tab ────────────────────
+  // ── Update the account icon/badge in More tab + header ──────────
   function updateAccountBadge() {
     const el = document.getElementById('more-account-sub');
-    if (!el) return;
-    el.textContent = _user
-      ? (_user.displayName || _user.email || 'Signed in')
-      : 'Sign in to back up your data';
+    if (el) {
+      el.textContent = _user
+        ? (_user.displayName || _user.email || 'Signed in')
+        : 'Sign in to back up your data';
+    }
+    // Update header subtitle to show signed-in name
+    const hdr = document.getElementById('header-sub');
+    if (hdr) {
+      const name = _user?.displayName || _user?.email;
+      hdr.textContent = _user && name
+        ? `Signed in as ${name.split('@')[0]}`
+        : "Your Ménière's Companion";
+    }
   }
 
   // ── Google sign-in (popup → redirect fallback) ──────────────────
   async function signInGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
-      // Popup works on desktop + mobile Chrome
       await auth.signInWithPopup(provider);
     } catch (e) {
-      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
-        // Popup blocked (common in PWA/iOS) — fall back to redirect
-        try {
-          await auth.signInWithRedirect(provider);
-        } catch (e2) {
-          showToast('Sign in failed — try again');
-        }
-      } else if (e.code !== 'auth/cancelled-popup-request') {
+      // User deliberately closed the popup — silent exit
+      if (e.code === 'auth/popup-closed-by-user' ||
+          e.code === 'auth/cancelled-popup-request') return;
+      // Any other failure (blocked, unsupported env on iOS, etc.) → redirect
+      try {
+        await auth.signInWithRedirect(provider);
+      } catch (e2) {
         showToast('Sign in failed — try again');
       }
     }

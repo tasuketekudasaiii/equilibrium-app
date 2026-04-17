@@ -563,7 +563,11 @@ function renderHome() {
   `;
 
   renderWaterRow('#home-water', glasses, 'home');
-  qs('#header-sub').textContent = "Your Ménière's Companion";
+  const signedIn = window.FireSync?.isSignedIn();
+  const userName = window.FireSync?.getUser()?.displayName || window.FireSync?.getUser()?.email;
+  qs('#header-sub').textContent = signedIn && userName
+    ? `Signed in as ${userName.split('@')[0]}`
+    : "Your Ménière's Companion";
 }
 
 function attackEntry(a) {
@@ -1454,9 +1458,12 @@ function renderAccountPanel() {
 
     qs('#btn-google-signin').addEventListener('click', async () => {
       await window.FireSync.signInGoogle();
+      // onAuthStateChanged will fire and re-render the panel automatically
+      // Only show toast + close if popup succeeded (redirect navigates away)
       if (window.FireSync.isSignedIn()) {
+        showToast('Signed in ✓');
         closePanel();
-        showToast('Signed in with Google ✓');
+        renderHome();
         renderMore();
       }
     });
