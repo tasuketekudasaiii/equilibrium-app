@@ -3088,32 +3088,42 @@ const TUTORIAL_STEPS = [
   {
     icon: '🌊',
     title: 'Welcome to Equilibrium',
-    body: 'Your personal companion for managing Ménière\'s disease. This quick tour shows you how to get the most out of the app.',
+    body: 'Your personal companion for managing Ménière\'s disease. Track symptoms, sodium, wellness, and more — all in one place. This quick tour shows you everything.',
   },
   {
     icon: '🏠',
     title: 'Your Daily Dashboard',
-    body: 'The <strong>Home</strong> tab shows today\'s sodium, hydration, attacks this week, and stress level. Use the ← → arrows to review past days.',
+    body: 'The <strong>Home</strong> tab shows today\'s sodium, hydration, attacks this week, and stress level. It also shows <strong>live weather and barometric pressure</strong> — pressure changes are a known Ménière\'s trigger. Use the ← → arrows to review any past day.',
   },
   {
     icon: '⚡',
     title: 'Log Attacks',
-    body: 'On the <strong>Symptoms</strong> tab, tap the attack button to open the log form instantly. Record intensity (1–10), duration, and which symptoms you experienced.',
+    body: 'On the <strong>Symptoms</strong> tab, tap the attack button to log instantly. Record intensity (1–10), duration (1–60 min), symptoms experienced, and any notes. Every attack is timestamped and saved to your history.',
   },
   {
     icon: '🧂',
     title: 'Track Your Sodium',
-    body: 'The <strong>Diet</strong> tab lets you search foods and log sodium. Type any food name — results come from the <strong>USDA FoodData Central</strong> database (1M+ foods) and you can always edit the sodium amount before adding.',
+    body: 'The <strong>Diet</strong> tab lets you search and log food. Results come from the <strong>USDA FoodData Central</strong> database with over 1 million foods. You can also scan a barcode or search by name — and edit the sodium amount before adding.',
   },
   {
     icon: '🌿',
     title: 'Daily Wellness Check-In',
-    body: 'On the <strong>Wellness</strong> tab, log your stress level, mood, sleep, and trigger beverages like caffeine and alcohol every day.',
+    body: 'On the <strong>Wellness</strong> tab, log your mood, stress level, hours of sleep, and trigger beverages like caffeine and alcohol. Consistent daily check-ins help reveal patterns over time.',
   },
   {
     icon: '☰',
     title: 'More Tools',
-    body: 'The <strong>More</strong> tab has Medications, Trigger Insights, a Doctor Report you can copy for appointments, an Emergency Card, and Settings.',
+    body: 'The <strong>More</strong> tab has everything else: <strong>Medications</strong> to track doses, <strong>Trigger Insights</strong> to spot patterns, an <strong>Emergency Card</strong> with your info for first responders, and <strong>Settings</strong> to customize your goals.',
+  },
+  {
+    icon: '📋',
+    title: 'Doctor Report',
+    body: 'Under More → <strong>Doctor Report</strong>, choose any date range and generate a full summary: attack history with barometric pressure readings, sodium averages, sleep, stress, and medications. <strong>Copy it with one tap</strong> and paste it directly into a message to your doctor.',
+  },
+  {
+    icon: '📱',
+    title: 'Install & Back Up',
+    body: '<strong>Install the app:</strong> on iPhone tap Share → "Add to Home Screen". On Android tap the Chrome menu → "Install app". It opens fullscreen like a native app.<br><br><strong>Back up your data:</strong> go to More → Account & Backup and create a free account — your health history syncs to the cloud and is never lost.',
   },
 ];
 
