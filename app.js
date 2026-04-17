@@ -1426,6 +1426,10 @@ function renderAccountPanel() {
         </div>
 
         <!-- Email -->
+        ${mode === 'register' ? `
+        <div class="form-group">
+          <input type="text" class="form-input" id="auth-name" placeholder="Your name" autocomplete="name">
+        </div>` : ''}
         <div class="form-group">
           <input type="email" class="form-input" id="auth-email" placeholder="Email address" autocomplete="email">
         </div>
@@ -1468,14 +1472,16 @@ function renderAccountPanel() {
     qs('#btn-email-auth').addEventListener('click', async () => {
       const email    = qs('#auth-email').value.trim();
       const password = qs('#auth-password').value;
+      const name     = qs('#auth-name')?.value.trim() || '';
       if (!email || !password) { showToast('Enter your email and password'); return; }
+      if (mode === 'register' && !name) { showToast('Enter your name'); return; }
       const ok = mode === 'signin'
         ? await window.FireSync.signInEmail(email, password)
-        : await window.FireSync.createAccount(email, password);
+        : await window.FireSync.createAccount(email, password, name);
       if (ok) {
+        const displayName = window.FireSync.getUser()?.displayName || name || email.split('@')[0];
+        showToast(`Welcome, ${displayName} ✓`);
         closePanel();
-        showToast(mode === 'signin' ? 'Signed in ✓' : 'Account created ✓');
-        renderMore();
       }
     });
 

@@ -218,9 +218,14 @@ window.FireSync = (() => {
   }
 
   // ── Create account ───────────────────────────────────────────────
-  async function createAccount(email, password) {
+  async function createAccount(email, password, name) {
     try {
-      await auth.createUserWithEmailAndPassword(email, password);
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      // Save the display name immediately
+      if (name && cred.user) {
+        await cred.user.updateProfile({ displayName: name });
+        _user = auth.currentUser; // refresh with updated profile
+      }
       return true;
     } catch (e) {
       const msg = {
