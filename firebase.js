@@ -119,17 +119,18 @@ window.FireSync = (() => {
     _user = user;
     _initialized = true;
 
+    // Update UI immediately — don't wait for cloud data
+    rerender();
+    updateAccountBadge();
+
     if (user) {
+      // Load/migrate cloud data in the background
       const hadCloudData = await loadFromCloud();
       if (!hadCloudData) {
-        // Brand new account — push whatever local data exists
         await migrateLocalToCloud();
       }
+      // Re-render again now that data is loaded
       rerender();
-      updateAccountBadge();
-    } else {
-      rerender();
-      updateAccountBadge();
     }
   });
 
@@ -155,7 +156,13 @@ window.FireSync = (() => {
   async function signInGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
-      await auth.signInWithPopup(provider);
+      const result = await auth.signInWithPopup(provider);
+      // Immediately update state from popup result — don't wait for onAuthStateChanged
+      if (result.user) {
+        _user = result.user;
+        updateAccountBadge();
+        rerender();
+      }
     } catch (e) {
       // User deliberately closed the popup — silent exit
       if (e.code === 'auth/popup-closed-by-user' ||

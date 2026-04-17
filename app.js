@@ -1458,14 +1458,12 @@ function renderAccountPanel() {
 
     qs('#btn-google-signin').addEventListener('click', async () => {
       await window.FireSync.signInGoogle();
-      // onAuthStateChanged will fire and re-render the panel automatically
-      // Only show toast + close if popup succeeded (redirect navigates away)
+      // If popup succeeded, _user is set immediately — close panel and confirm
       if (window.FireSync.isSignedIn()) {
         showToast('Signed in ✓');
         closePanel();
-        renderHome();
-        renderMore();
       }
+      // If redirect was triggered instead, page will navigate away automatically
     });
 
     qs('#btn-email-auth').addEventListener('click', async () => {
