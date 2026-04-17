@@ -758,15 +758,20 @@ function renderLogAttackPanel(prefillStart) {
   const minOpts  = Array.from({length:60}, (_,m) =>
     `<option value="${m}"${m===prefillM?' selected':''}>${m}m</option>`).join('');
 
+  const attackDate = prefillStart ? prefillStart.split('T')[0] : defaultDate;
+  const attackTime = prefillStart ? new Date(prefillStart).toTimeString().slice(0,5) : defaultTime;
+
   bodyEl.innerHTML = `
     <form id="form-log-attack">
       <div class="form-group">
         <label class="form-label">Date</label>
-        <input type="date" class="form-input" name="date" value="${prefillStart ? prefillStart.split('T')[0] : defaultDate}" max="${defaultDate}">
+        <input type="date" class="form-input" name="date" value="${attackDate}" max="${defaultDate}">
       </div>
       <div class="form-group">
         <label class="form-label">Start time</label>
-        <input type="time" class="form-input" name="startTime" value="${prefillStart ? new Date(prefillStart).toTimeString().slice(0,5) : defaultTime}">
+        <input type="time" class="form-input" name="startTime"
+          value="${attackTime}"
+          ${attackDate === defaultDate ? `max="${defaultTime}"` : ''}>
       </div>
       <div class="form-group">
         <label class="form-label">Duration</label>
@@ -813,6 +818,28 @@ function renderLogAttackPanel(prefillStart) {
   qs('#intensity-slider').addEventListener('input', function() {
     qs('#intensity-val').textContent = this.value;
   });
+
+  // ── Future time guard ─────────────────────────────────────────────
+  const dateInput = bodyEl.querySelector('[name="date"]');
+  const timeInput = bodyEl.querySelector('[name="startTime"]');
+
+  function updateTimeMax() {
+    const nowStr  = new Date().toTimeString().slice(0,5);
+    const isToday = dateInput.value === today();
+    if (isToday) {
+      timeInput.max = nowStr;
+      // If current value is already in the future, clamp it
+      if (timeInput.value > nowStr) {
+        timeInput.value = nowStr;
+        showToast('Start time set to now — can\'t log a future attack');
+      }
+    } else {
+      timeInput.removeAttribute('max');
+    }
+  }
+
+  dateInput.addEventListener('change', updateTimeMax);
+  timeInput.addEventListener('change', updateTimeMax);
 }
 
 // ── DIET VIEW ──────────────────────────────────────────────────────
@@ -3052,6 +3079,16 @@ document.addEventListener('submit', e => {
     const dur = (parseInt(fd.get('dur-h')) || 0) * 60 + (parseInt(fd.get('dur-m')) || 0);
     const startTimeStr = fd.get('startTime');
     const dateStr = fd.get('date') || today();
+
+    // Block future date+time combinations
+    if (startTimeStr) {
+      const chosen = new Date(`${dateStr}T${startTimeStr}:00`);
+      if (chosen > new Date()) {
+        showToast('Start time can\'t be in the future');
+        return;
+      }
+    }
+
     const startISO = startTimeStr ? `${dateStr}T${startTimeStr}:00` : null;
     const syms = fd.getAll('symptoms');
 
