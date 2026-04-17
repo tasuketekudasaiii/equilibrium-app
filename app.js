@@ -1291,14 +1291,6 @@ function renderMore() {
       <div class="more-arrow">›</div>
     </div>
 
-    <div class="more-item" data-action="export">
-      <div class="more-icon" style="background:#EEF0FF">📤</div>
-      <div class="more-content">
-        <div class="more-title">Export Data</div>
-        <div class="more-sub">Download your health data as CSV</div>
-      </div>
-      <div class="more-arrow">›</div>
-    </div>
 
 
     <div class="more-item" data-action="emergency">
@@ -1390,7 +1382,7 @@ function renderAccountPanel() {
       </div>
       <div class="card">
         <div class="card-title" style="margin-bottom:var(--sp-sm)">🔒 Your Privacy</div>
-        <p style="font-size:13px;color:var(--text-m);line-height:1.6">Your health data is stored securely in your personal account. Only you can access it. Midori Labs cannot read your data.</p>
+        <p style="font-size:13px;color:var(--text-m);line-height:1.6">Your health data is stored securely in your personal account. Only you can access it. Equilibrium cannot read your data.</p>
       </div>
     `;
     qs('#btn-sign-out').addEventListener('click', async () => {
@@ -1453,7 +1445,7 @@ function renderAccountPanel() {
 
       <div class="card">
         <div style="font-size:13px;color:var(--text-m);line-height:1.6;text-align:center">
-          🔒 Your data is encrypted and private. Without an account it stays only on this device. Sign in to back it up to the cloud.<br><br>Midori Labs never sells or shares your health data.
+          🔒 Your data is encrypted and private. Without an account it stays only on this device. Sign in to back it up to the cloud.<br><br>Equilibrium never sells or shares your health data.
         </div>
       </div>
 
