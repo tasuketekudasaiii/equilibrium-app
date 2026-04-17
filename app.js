@@ -3084,7 +3084,7 @@ document.addEventListener('submit', e => {
 });
 
 // ── TUTORIAL ──────────────────────────────────────────────────────
-const TUTORIAL_VERSION = 3; // bump this whenever tutorial content changes
+const TUTORIAL_VERSION = 4; // bump this whenever tutorial content changes
 
 const TUTORIAL_STEPS = [
   {
@@ -3125,7 +3125,7 @@ const TUTORIAL_STEPS = [
   {
     icon: '📱',
     title: 'Install & Back Up',
-    body: '<strong>Install the app:</strong> on iPhone tap Share → "Add to Home Screen". On Android tap the Chrome menu → "Install app". It opens fullscreen like a native app.<br><br><strong>Back up your data:</strong> go to More → Account & Backup and create a free account — your health history syncs to the cloud and is never lost.',
+    body: '<strong>iPhone:</strong> open in Safari → tap <strong>(···)</strong> → Share → <strong>More (···)</strong> → "Add to Home Screen".<br><strong>Android:</strong> open in Chrome → tap the <strong>three dots menu</strong> → "Install app".<br><br>It opens fullscreen like a native app with no browser bar.<br><br><strong>Back up your data:</strong> go to More → Account & Backup and create a free account — your health history syncs to the cloud and is never lost.',
   },
 ];
 
