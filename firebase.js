@@ -138,15 +138,26 @@ const FireSync = (() => {
       : 'Sign in to back up your data';
   }
 
-  // ── Google sign-in ───────────────────────────────────────────────
+  // ── Google sign-in (redirect — works in PWA/iOS/Android) ────────
   async function signInGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
-      await auth.signInWithPopup(provider);
+      await auth.signInWithRedirect(provider);
     } catch (e) {
-      if (e.code !== 'auth/popup-closed-by-user') showToast('Sign in failed — try again');
+      showToast('Sign in failed — try again');
     }
   }
+
+  // ── Handle redirect result on page load ─────────────────────────
+  auth.getRedirectResult().then(result => {
+    if (result && result.user) {
+      showToast('Signed in with Google ✓');
+    }
+  }).catch(e => {
+    if (e.code && e.code !== 'auth/no-auth-event') {
+      showToast('Google sign-in failed — try again');
+    }
+  });
 
   // ── Email sign-in ────────────────────────────────────────────────
   async function signInEmail(email, password) {

@@ -1220,14 +1220,15 @@ function renderAboutPanel() {
     <div class="card">
       <div class="card-title" style="margin-bottom:var(--sp-sm)">🔒 Privacy</div>
       <p style="font-size:14px;line-height:1.65;color:var(--text-m)">
-        All your health data is stored <strong>only on this device</strong> using your browser's
-        local storage. Nothing is ever sent to a server, shared with third parties, or backed up
-        to the cloud. If you clear your browser data, your Equilibrium data will be deleted.
+        Your health data is stored <strong>on this device</strong> by default. If you create a free
+        account, your data is also securely backed up to the cloud so you never lose it and can
+        access it across multiple devices.
       </p>
       <p style="font-size:14px;line-height:1.65;color:var(--text-m);margin-top:var(--sp-sm)">
-        The only external connection made is when you search for food — search terms are sent to the
-        <strong>USDA FoodData Central API</strong> to retrieve nutritional data. No personal health
-        information is ever included in these requests.
+        Your data is <strong>never shared with third parties</strong>. The only external connections
+        are: cloud sync if you're signed in (your data only, fully encrypted), food searches via the
+        <strong>USDA FoodData Central API</strong>, and local weather via <strong>Open-Meteo</strong>
+        (no personal data sent).
       </p>
     </div>
 
@@ -1335,7 +1336,7 @@ function renderMore() {
     </div>
 
     <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
-      Equilibrium v3.0 · All data stays on your device
+      Equilibrium v3.0 · Your data, your control
     </p>
   `;
 }
@@ -1444,7 +1445,7 @@ function renderAccountPanel() {
 
       <div class="card">
         <div style="font-size:13px;color:var(--text-m);line-height:1.6;text-align:center">
-          🔒 Your data is encrypted and private.<br>Midori Labs never sells or shares your health data.
+          🔒 Your data is encrypted and private. Without an account it stays only on this device. Sign in to back it up to the cloud.<br><br>Midori Labs never sells or shares your health data.
         </div>
       </div>
 
