@@ -13,7 +13,7 @@ const K = {
   attacks:'eq_attacks', medications:'eq_meds', doses:'eq_doses',
   sodium:'eq_sodium', hydration:'eq_hydration', stress:'eq_stress',
   sleep:'eq_sleep', caff:'eq_caff', emergency:'eq_emergency', settings:'eq_settings',
-  activeAttack:'eq_active_attack', tutorialSeen:'eq_tutorial_seen',
+  activeAttack:'eq_active_attack', tutorialSeen:'eq_tutorial_ver',
   badges:'eq_badges',
   notifLast:'eq_notif_last',
   weeklySummaryShown:'eq_week_summary',
@@ -1179,7 +1179,7 @@ function renderAboutPanel() {
         </svg>
       </div>
       <div style="font-size:22px;font-weight:800;color:var(--text)">Equilibrium</div>
-      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v3.0</div>
+      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v1.4</div>
     </div>
 
     <div class="card">
@@ -1332,7 +1332,7 @@ function renderMore() {
     </div>
 
     <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
-      Equilibrium v3.0 · Your data, your control
+      Equilibrium v1.4 · Your data, your control
     </p>
   `;
 }
@@ -3084,6 +3084,8 @@ document.addEventListener('submit', e => {
 });
 
 // ── TUTORIAL ──────────────────────────────────────────────────────
+const TUTORIAL_VERSION = 2; // bump this whenever tutorial content changes
+
 const TUTORIAL_STEPS = [
   {
     icon: '🌊',
@@ -3141,7 +3143,7 @@ const Tutorial = {
   },
 
   markSeen() {
-    localStorage.setItem(K.tutorialSeen, '1');
+    localStorage.setItem(K.tutorialSeen, String(TUTORIAL_VERSION));
     this.hide();
   },
 
@@ -3488,8 +3490,9 @@ function init() {
     }, 300);
   }
 
-  // Show tutorial on first launch
-  if (!localStorage.getItem(K.tutorialSeen)) {
+  // Show tutorial on first launch OR when tutorial content has been updated
+  const seenVer = parseInt(localStorage.getItem(K.tutorialSeen) || '0');
+  if (seenVer < TUTORIAL_VERSION) {
     setTimeout(() => Tutorial.show(), 400);
   }
 
