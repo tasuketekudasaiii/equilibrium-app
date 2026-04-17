@@ -130,7 +130,7 @@ function showToast(msg, ms=2500) {
 // ── Storage ───────────────────────────────────────────────────────
 const DB = {
   g(k){try{return JSON.parse(localStorage.getItem(k))||null}catch{return null}},
-  s(k,v){localStorage.setItem(k,JSON.stringify(v))},
+  s(k,v){localStorage.setItem(k,JSON.stringify(v)); window.FireSync?.push(k,v);},
 
   // Attacks
   attacks(){return this.g(K.attacks)||[]},
@@ -548,6 +548,7 @@ function renderHome() {
     </div>
 
     ${renderStreaksCardHTML()}
+    ${renderBackupNudge()}
 
     ${renderOnboardingCard()}
 
@@ -1315,6 +1316,15 @@ function renderMore() {
 
     <!-- Year in Review — re-enable Jan 1 next year -->
 
+    <div class="more-item" data-action="account">
+      <div class="more-icon" style="background:#EBF5F2">👤</div>
+      <div class="more-content">
+        <div class="more-title">Account & Backup</div>
+        <div class="more-sub" id="more-account-sub">${window.FireSync?.isSignedIn() ? (window.FireSync.getUser()?.displayName || window.FireSync.getUser()?.email || 'Signed in') : 'Sign in to back up your data'}</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
     <div class="more-item" data-action="about">
       <div class="more-icon" style="background:#EEF0FF">ℹ️</div>
       <div class="more-content">
@@ -1328,6 +1338,155 @@ function renderMore() {
       Equilibrium v3.0 · All data stays on your device
     </p>
   `;
+}
+
+// ── BACKUP NUDGE BANNER ──────────────────────────────────────────
+function renderBackupNudge() {
+  // Don't show if already signed in
+  if (window.FireSync?.isSignedIn()) return '';
+  // Only show after 3+ days of use
+  const firstSeen = localStorage.getItem('eq_first_seen');
+  if (!firstSeen) { localStorage.setItem('eq_first_seen', today()); return ''; }
+  const daysSince = dateDiff(firstSeen, today());
+  if (daysSince < 3) return '';
+  // Don't show if dismissed this week
+  const dismissed = localStorage.getItem('eq_nudge_dismissed');
+  if (dismissed && dateDiff(dismissed, today()) < 7) return '';
+  return `
+    <div class="backup-nudge" id="backup-nudge">
+      <div style="font-size:20px;flex-shrink:0">☁️</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px">Back up your data</div>
+        <div style="font-size:12px;opacity:0.85">Create a free account so you never lose your health history</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-sm" style="background:white;color:var(--p);font-weight:700" data-action="account">Sign in</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white" id="btn-dismiss-nudge">✕</button>
+      </div>
+    </div>`;
+}
+
+// ── ACCOUNT PANEL ────────────────────────────────────────────────
+function renderAccountPanel() {
+  const el = qs('#panel-account-body');
+  const user = window.FireSync?.getUser();
+
+  if (user) {
+    // Signed-in view
+    el.innerHTML = `
+      <div class="card" style="text-align:center;padding:var(--sp-xl) var(--sp-lg)">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--p);color:white;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto var(--sp-md)">
+          ${(user.displayName || user.email || '?')[0].toUpperCase()}
+        </div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:4px">${user.displayName || 'Account'}</div>
+        <div style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-lg)">${user.email || ''}</div>
+        <div class="pill pill-success" style="margin-bottom:var(--sp-lg)">☁️ Data syncing to cloud</div>
+        <button class="btn btn-outline btn-full" id="btn-sign-out">Sign out</button>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:var(--sp-sm)">🔒 Your Privacy</div>
+        <p style="font-size:13px;color:var(--text-m);line-height:1.6">Your health data is stored securely in your personal account. Only you can access it. Midori Labs cannot read your data.</p>
+      </div>
+    `;
+    qs('#btn-sign-out').addEventListener('click', async () => {
+      if (confirm('Sign out? Your data is safely backed up in the cloud.')) {
+        await window.FireSync.signOut();
+        closePanel();
+        renderMore();
+      }
+    });
+    return;
+  }
+
+  // Signed-out view — show sign in / create account
+  let mode = 'signin'; // 'signin' | 'register'
+
+  function renderForm() {
+    el.innerHTML = `
+      <div class="card" style="text-align:center;padding:var(--sp-lg) var(--sp-md) var(--sp-md)">
+        <div style="font-size:32px;margin-bottom:var(--sp-sm)">🌿</div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:4px">${mode === 'signin' ? 'Welcome back' : 'Create account'}</div>
+        <div style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-lg)">${mode === 'signin' ? 'Sign in to sync your data across devices' : 'Free forever — your data, your control'}</div>
+
+        <!-- Google -->
+        <button class="btn btn-full" id="btn-google-signin" style="background:#fff;color:#1A2B26;border:2px solid var(--border);margin-bottom:var(--sp-sm);gap:10px">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Continue with Google
+        </button>
+
+        <div style="display:flex;align-items:center;gap:var(--sp-sm);margin:var(--sp-md) 0">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:12px;color:var(--text-m)">or</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <input type="email" class="form-input" id="auth-email" placeholder="Email address" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <input type="password" class="form-input" id="auth-password" placeholder="Password (min 6 characters)" autocomplete="${mode === 'signin' ? 'current-password' : 'new-password'}">
+        </div>
+
+        <button class="btn btn-primary btn-full" id="btn-email-auth" style="margin-bottom:var(--sp-sm)">
+          ${mode === 'signin' ? 'Sign in' : 'Create account'}
+        </button>
+
+        ${mode === 'signin' ? `<button class="btn btn-ghost btn-full btn-sm" id="btn-forgot">Forgot password?</button>` : ''}
+
+        <div style="margin-top:var(--sp-md);font-size:13px;color:var(--text-m)">
+          ${mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}
+          <button class="btn btn-ghost btn-sm" id="btn-toggle-mode" style="padding:4px 8px">
+            ${mode === 'signin' ? 'Create one' : 'Sign in'}
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:13px;color:var(--text-m);line-height:1.6;text-align:center">
+          🔒 Your data is encrypted and private.<br>Midori Labs never sells or shares your health data.
+        </div>
+      </div>
+
+      <button class="btn btn-ghost btn-full btn-sm" style="margin-top:var(--sp-sm);color:var(--text-m)" data-close>Continue as guest →</button>
+    `;
+
+    qs('#btn-google-signin').addEventListener('click', async () => {
+      await window.FireSync.signInGoogle();
+      if (window.FireSync.isSignedIn()) {
+        closePanel();
+        showToast('Signed in with Google ✓');
+        renderMore();
+      }
+    });
+
+    qs('#btn-email-auth').addEventListener('click', async () => {
+      const email    = qs('#auth-email').value.trim();
+      const password = qs('#auth-password').value;
+      if (!email || !password) { showToast('Enter your email and password'); return; }
+      const ok = mode === 'signin'
+        ? await window.FireSync.signInEmail(email, password)
+        : await window.FireSync.createAccount(email, password);
+      if (ok) {
+        closePanel();
+        showToast(mode === 'signin' ? 'Signed in ✓' : 'Account created ✓');
+        renderMore();
+      }
+    });
+
+    qs('#btn-toggle-mode').addEventListener('click', () => {
+      mode = mode === 'signin' ? 'register' : 'signin';
+      renderForm();
+    });
+
+    qs('#btn-forgot')?.addEventListener('click', async () => {
+      const email = qs('#auth-email').value.trim();
+      if (!email) { showToast('Enter your email first'); return; }
+      await window.FireSync.resetPassword(email);
+    });
+  }
+
+  renderForm();
 }
 
 function renderSettingsPanel() {
@@ -2714,6 +2873,7 @@ document.addEventListener('click', e => {
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
       case 'settings':    openPanel('panel-settings', renderSettingsPanel); break;
       case 'export':      openPanel('panel-export', renderExportPanel); break;
+      case 'account':     openPanel('panel-account', renderAccountPanel); break;
 
       case 'year-review': openPanel('panel-review', renderReviewPanel); break;
 
@@ -2793,6 +2953,14 @@ document.addEventListener('click', e => {
   if (heatCell) {
     S.viewDate = heatCell.dataset.heatDate;
     renderSymptoms();
+    return;
+  }
+
+  // Backup nudge dismiss
+  if (e.target.id === 'btn-dismiss-nudge' || e.target.closest('#btn-dismiss-nudge')) {
+    localStorage.setItem('eq_nudge_dismissed', today());
+    const nudge = qs('#backup-nudge');
+    if (nudge) nudge.remove();
     return;
   }
 

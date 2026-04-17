@@ -237,6 +237,15 @@
     </div>
   </div>
 
+  <!-- ── Panel: Account ──────────────────────── -->
+  <div id="panel-account" class="panel">
+    <div class="panel-hdr">
+      <h2 class="panel-title">👤 Account</h2>
+      <button class="panel-close" data-close>✕</button>
+    </div>
+    <div class="panel-body" id="panel-account-body"></div>
+  </div>
+
   <!-- ── Toast ─────────────────────────────── -->
   <div id="toast"></div>
 
@@ -244,7 +253,13 @@
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Firebase compat SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <!-- App logic -->
-<script src="app.js?v=21"></script>
+<script src="app.js?v=22"></script>
+<!-- Firebase sync (after app.js so it can call renderHome etc) -->
+<script src="firebase.js?v=1"></script>
 </body>
 </html>
