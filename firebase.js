@@ -127,11 +127,14 @@ window.FireSync = (() => {
     if (user) {
       const lastUID = localStorage.getItem('eq_last_uid');
 
-      if (lastUID && lastUID !== user.uid) {
-        // Different account signed in — wipe local data so we don't
-        // bleed one user's health data into another account
-        console.log('[FireSync] account switch detected — clearing local data');
+        if (lastUID && lastUID !== user.uid) {
+        // Different account — wipe local data, store new UID, then
+        // force a full reload so the PWA starts completely fresh
+        console.log('[FireSync] account switch — reloading for fresh state');
         DATA_KEYS.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem('eq_last_uid', user.uid);
+        window.location.reload();
+        return;
       }
 
       // Remember this user for next time
@@ -142,7 +145,7 @@ window.FireSync = (() => {
         if (!lastUID) {
           // Genuinely new account from guest — migrate local data
           await migrateLocalToCloud();
-        } else if (lastUID !== user.uid) {
+        } else {
           // Different account with no cloud data — ensure local is clean
           DATA_KEYS.forEach(k => localStorage.removeItem(k));
         }
