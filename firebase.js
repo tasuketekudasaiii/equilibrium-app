@@ -120,15 +120,29 @@ window.FireSync = (() => {
     _user = user;
     _initialized = true;
 
-    // Update UI immediately — don't wait for cloud data
+    // Update UI immediately
     updateAccountBadge();
     try { rerender(); } catch(e) { console.warn('[FireSync] rerender error:', e); }
 
     if (user) {
-      // Load/migrate cloud data in the background
+      const lastUID = localStorage.getItem('eq_last_uid');
+
+      if (lastUID && lastUID !== user.uid) {
+        // Different account signed in — wipe local data so we don't
+        // bleed one user's health data into another account
+        console.log('[FireSync] account switch detected — clearing local data');
+        DATA_KEYS.forEach(k => localStorage.removeItem(k));
+      }
+
+      // Remember this user for next time
+      localStorage.setItem('eq_last_uid', user.uid);
+
       const hadCloudData = await loadFromCloud();
-      if (!hadCloudData) await migrateLocalToCloud();
-      // Re-render once more with fresh data
+      if (!hadCloudData && !lastUID) {
+        // Genuinely new account from guest — migrate local data
+        await migrateLocalToCloud();
+      }
+
       try { rerender(); } catch(e) {}
     }
   });
