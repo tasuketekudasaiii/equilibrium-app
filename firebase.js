@@ -232,11 +232,15 @@ window.FireSync = (() => {
       }
       return true;
     } catch (e) {
+      console.error('[FireSync] createAccount error:', e.code, e.message);
       const msg = {
-        'auth/email-already-in-use': 'Email already in use — try signing in',
-        'auth/weak-password':        'Password must be at least 6 characters',
-        'auth/invalid-email':        'Invalid email address',
-      }[e.code] || 'Could not create account — try again';
+        'auth/email-already-in-use':   'Email already in use — try signing in',
+        'auth/weak-password':          'Password must be at least 6 characters',
+        'auth/invalid-email':          'Invalid email address',
+        'auth/operation-not-allowed':  'Email sign-in is not enabled — contact support',
+        'auth/network-request-failed': 'Network error — check your connection',
+        'auth/too-many-requests':      'Too many attempts — try again later',
+      }[e.code] || `Could not create account (${e.code || 'unknown'})`;
       showToast(msg);
       return false;
     }
