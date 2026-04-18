@@ -138,9 +138,14 @@ window.FireSync = (() => {
       localStorage.setItem('eq_last_uid', user.uid);
 
       const hadCloudData = await loadFromCloud();
-      if (!hadCloudData && !lastUID) {
-        // Genuinely new account from guest — migrate local data
-        await migrateLocalToCloud();
+      if (!hadCloudData) {
+        if (!lastUID) {
+          // Genuinely new account from guest — migrate local data
+          await migrateLocalToCloud();
+        } else if (lastUID !== user.uid) {
+          // Different account with no cloud data — ensure local is clean
+          DATA_KEYS.forEach(k => localStorage.removeItem(k));
+        }
       }
 
       try { rerender(); } catch(e) {}
