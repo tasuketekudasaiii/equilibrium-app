@@ -1057,20 +1057,24 @@ function renderWellness() {
   });
 
   setTimeout(() => renderStressChart(), 50);
-  renderPressureCard();
+  renderPressureCard(S.viewDate);
 }
 
 // ── BAROMETRIC PRESSURE ──────────────────────────────────────────
-async function renderPressureCard() {
+async function renderPressureCard(viewDate) {
   const el = qs('#pressure-card');
   if (!el) return;
 
-  el.innerHTML = `<div class="card-title" style="margin-bottom:8px">🌡️ Barometric Pressure</div><div style="font-size:13px;color:var(--text-m)">Fetching current pressure…</div>`;
+  const todayStr  = today();
+  const isToday   = !viewDate || viewDate === todayStr;
+  const targetDate = viewDate || todayStr;
+
+  el.innerHTML = `<div class="card-title" style="margin-bottom:8px">🌡️ Weather & Pressure</div><div style="font-size:13px;color:var(--text-m)">${isToday ? 'Fetching current data…' : `Loading data for ${fmtDate(targetDate)}…`}</div>`;
 
   const pressureLog = DB.g(K.pressure) || [];
-  const todayStr = today();
 
-  try {
+  // Only hit the live API when viewing today
+  try { if (!isToday) throw new Error('past');
     const pos = await new Promise((res, rej) =>
       navigator.geolocation.getCurrentPosition(res, rej, {timeout:8000})
     );
@@ -1084,20 +1088,21 @@ async function renderPressureCard() {
     const tempF = tempC != null ? Math.round(tempC * 9/5 + 32) : null;
 
     if (hpa > 0) {
-      // Store reading (one per day)
+      // Store reading (one per day, today only)
       const idx = pressureLog.findIndex(p => p.date === todayStr);
       const entry = {date: todayStr, hpa, humidity, tempF, time: nowISO()};
       if (idx >= 0) pressureLog[idx] = entry;
       else pressureLog.push(entry);
-      // Keep last 30 days
-      while (pressureLog.length > 30) pressureLog.shift();
+      // Keep last 90 days
+      while (pressureLog.length > 90) pressureLog.shift();
       DB.s(K.pressure, pressureLog);
     }
   } catch (_) { /* geolocation or network failed — just show stored data */ }
 
-  // Render with stored data
+  // Render with stored data — show the target date's reading
   const stored = DB.g(K.pressure) || [];
-  const current = stored.find(p => p.date === todayStr) || stored[stored.length - 1];
+  const current = stored.find(p => p.date === targetDate)
+    || (isToday ? stored[stored.length - 1] : null);
   const last7 = [];
   for (let i = 6; i >= 0; i--) {
     const d = daysAgo(i);
@@ -1106,8 +1111,11 @@ async function renderPressureCard() {
   }
 
   if (!current) {
-    el.innerHTML = `<div class="card-title" style="margin-bottom:8px">🌡️ Barometric Pressure</div>
-      <div style="font-size:13px;color:var(--text-m)">Unable to fetch pressure. Allow location access to enable this feature.</div>`;
+    el.innerHTML = `<div class="card-title" style="margin-bottom:8px">🌡️ Weather & Pressure</div>
+      <div style="font-size:13px;color:var(--text-m)">${isToday
+        ? 'Unable to fetch pressure. Allow location access to enable this feature.'
+        : `No pressure data saved for ${fmtDate(targetDate)}.`
+      }</div>`;
     return;
   }
 
@@ -1119,7 +1127,7 @@ async function renderPressureCard() {
     : {icon:'🟢', label:'Normal pressure', color:'var(--text-m)'};
 
   el.innerHTML = `
-    <div class="card-title" style="margin-bottom:8px">🌡️ Weather & Pressure</div>
+    <div class="card-title" style="margin-bottom:8px">🌡️ Weather & Pressure${!isToday ? ` <span style="font-size:11px;font-weight:500;color:var(--text-m)">· ${fmtDate(targetDate)}</span>` : ''}</div>
     <div style="display:flex;gap:var(--sp-md);margin-bottom:var(--sp-md);flex-wrap:wrap">
       <div class="weather-stat">
         <div class="weather-val">${hpa}<span class="weather-unit"> hPa</span></div>
