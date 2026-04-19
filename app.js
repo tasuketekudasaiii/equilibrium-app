@@ -2569,7 +2569,7 @@ function showScannerFallback() {
     qs('#btn-manual-barcode').addEventListener('click', () => {
       const code = qs('#manual-barcode').value.trim();
       if (!code) { showToast('Enter a barcode number'); return; }
-      closePanel();
+      qs('#barcode-lookup-result').innerHTML = '<p style="font-size:12px;color:var(--text-m)">🔍 Looking up product…</p>';
       lookupBarcode(code);
     });
   });
