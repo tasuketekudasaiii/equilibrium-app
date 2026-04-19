@@ -84,8 +84,8 @@ const FOOD_DB = [
 ];
 
 // ── Utilities ─────────────────────────────────────────────────────
-const today = () => new Date().toISOString().split('T')[0];
-const nowISO = () => new Date().toISOString();
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const nowISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const qs = (sel, ctx=document) => ctx.querySelector(sel);
 const qsa = (sel, ctx=document) => [...ctx.querySelectorAll(sel)];
