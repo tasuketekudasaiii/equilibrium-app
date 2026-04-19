@@ -1408,7 +1408,7 @@ function renderMore() {
       <div class="more-icon" style="background:#EFF3FF">💙</div>
       <div class="more-content">
         <div class="more-title">Support Equilibrium</div>
-        <div class="more-sub">Help keep the app free for everyone</div>
+        <div class="more-sub">A small gesture, a big impact</div>
       </div>
       <div class="more-arrow">›</div>
     </div>
