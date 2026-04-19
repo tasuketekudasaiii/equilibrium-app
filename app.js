@@ -1203,30 +1203,27 @@ function renderStressChart() {
 
 // ── SUPPORT PAGE ─────────────────────────────────────────────────
 function openSupportPage() {
-  const win = window.open('https://ko-fi.com/myequilibriumapp', '_blank', 'noopener');
-  if (!win) {
-    // Fallback if popup blocked — show a panel instead
-    const el = qs('#panel-about-body');
-    openPanel('panel-about', () => {
-      el.innerHTML = `
-        <div style="text-align:center;padding:var(--sp-xl) var(--sp-lg)">
-          <div style="font-size:48px;margin-bottom:var(--sp-md)">💙</div>
-          <div style="font-size:20px;font-weight:800;margin-bottom:var(--sp-sm)">Support Equilibrium</div>
-          <p style="font-size:14px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-lg)">
-            If you're here, thank you for using Equilibrium. Building something meaningful for the Ménière's community has been incredibly rewarding, and your presence — whether you donate or not — means everything to me.
-          </p>
-          <p style="font-size:13px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-xl)">
-            I'm committed to keeping Equilibrium free, improving it consistently, and listening to what the community needs. Every update is driven by real feedback from real people managing this condition every day.
-          </p>
-          <p style="font-size:15px;font-weight:600;margin-bottom:var(--sp-lg)">Thank you for being part of this. 💙<br><span style="font-weight:400;color:var(--text-m)">— Jorge</span></p>
-          <a href="https://ko-fi.com/myequilibriumapp" target="_blank" rel="noopener"
-            class="btn btn-primary btn-full"
-            style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:var(--sp-sm)">
-            💙 Support on Ko-fi
-          </a>
-        </div>`;
-    });
-  }
+  openPanel('panel-support', () => {
+    qs('#panel-support-body').innerHTML = `
+      <div style="text-align:center;padding:var(--sp-xl) var(--sp-lg)">
+        <div style="font-size:48px;margin-bottom:var(--sp-md)">💙</div>
+        <p style="font-size:14px;color:var(--text-m);line-height:1.75;margin-bottom:var(--sp-lg)">
+          If you're here, thank you for using Equilibrium. Building something meaningful for the Ménière's community has been incredibly rewarding, and your presence whether you donate or not means everything to me.
+        </p>
+        <p style="font-size:14px;color:var(--text-m);line-height:1.75;margin-bottom:var(--sp-lg)">
+          I'm committed to keeping Equilibrium free, improving it consistently, and listening to what the community needs. Every update is driven by real feedback from real people managing this condition every day.
+        </p>
+        <p style="font-size:15px;font-weight:600;margin-bottom:var(--sp-xl)">
+          Thank you for being part of this. 💙<br>
+          <span style="font-weight:400;color:var(--text-m)">— Jorge</span>
+        </p>
+        <a href="https://ko-fi.com/myequilibriumapp" target="_blank" rel="noopener"
+          class="btn btn-primary btn-full"
+          style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px">
+          💙 Support on Ko-fi
+        </a>
+      </div>`;
+  });
 }
 
 // ── MORE VIEW ──────────────────────────────────────────────────────
@@ -1321,7 +1318,7 @@ function renderAboutPanel() {
       <div style="font-size:22px;margin-bottom:var(--sp-sm)">💙</div>
       <div class="card-title" style="margin-bottom:var(--sp-sm)">Support Equilibrium</div>
       <p style="font-size:13px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-md)">
-        If you're here, thank you for using Equilibrium. Building something meaningful for the Ménière's community has been incredibly rewarding, and your presence — whether you donate or not — means everything to me.
+        If you're here, thank you for using Equilibrium. Building something meaningful for the Ménière's community has been incredibly rewarding, and your presence whether you donate or not means everything to me.
       </p>
       <a href="https://ko-fi.com/myequilibriumapp" target="_blank" rel="noopener"
         class="btn btn-primary btn-full"
