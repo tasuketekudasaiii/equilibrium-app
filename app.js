@@ -2504,14 +2504,14 @@ async function lookupBarcode(barcode) {
       const sodium = Math.round(sodiumPer100 / 100 * servingG);
       const srv = p.serving_size || '100g';
       const food = {n: name.charAt(0).toUpperCase() + name.slice(1).slice(0,55), s: sodium, srv, f: sodium > 600};
+      // Open the panel first (sets up UI, clears old results), then inject barcode result
+      renderFoodSearch();
       const resultsEl = qs('#food-search-results');
       if (resultsEl) {
         const section = document.createElement('div');
         section.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Scanned product</div>${foodItemHTML(food, 'Barcode')}`;
         resultsEl.prepend(section);
         setupFoodAddButtons(section);
-        // open the food search panel to show results
-        openPanel('panel-food-search', renderFoodSearch);
       }
     } else {
       showToast('Product not found — try manual entry');
