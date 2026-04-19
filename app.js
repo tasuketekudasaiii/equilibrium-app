@@ -2682,6 +2682,7 @@ function renderPlateResults(foods, container) {
               <button class="food-qty-btn food-qty-dec" data-idx="${i}" type="button">−</button>
               <span style="font-size:14px;font-weight:700;min-width:20px;text-align:center">${qtys[i]}×</span>
               <button class="food-qty-btn food-qty-inc" data-idx="${i}" type="button">+</button>
+              <button class="food-qty-btn" data-remove="${i}" type="button" style="color:var(--danger);margin-left:4px">🗑️</button>
             </div>
           </div>
         </div>`).join('')}
@@ -2709,6 +2710,20 @@ function renderPlateResults(foods, container) {
       btn.addEventListener('click', () => {
         const i = +btn.dataset.idx;
         qtys[i]++; render();
+      });
+    });
+    // Remove buttons
+    container.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.remove;
+        foods.splice(i, 1);
+        qtys.splice(i, 1);
+        if (foods.length === 0) {
+          container.innerHTML = `<div class="empty"><div class="empty-icon">🍽️</div><div class="empty-title">No items left</div><div class="empty-text">Tap Scan Again to try a new photo</div></div><button class="btn btn-outline btn-full" id="btn-rescan-plate" style="margin-top:var(--sp-md)">📸 Scan Again</button>`;
+          qs('#btn-rescan-plate').addEventListener('click', () => renderPlateScanner());
+          return;
+        }
+        render();
       });
     });
 
