@@ -1201,6 +1201,34 @@ function renderStressChart() {
   });
 }
 
+// ── SUPPORT PAGE ─────────────────────────────────────────────────
+function openSupportPage() {
+  const win = window.open('https://ko-fi.com/myequilibriumapp', '_blank', 'noopener');
+  if (!win) {
+    // Fallback if popup blocked — show a panel instead
+    const el = qs('#panel-about-body');
+    openPanel('panel-about', () => {
+      el.innerHTML = `
+        <div style="text-align:center;padding:var(--sp-xl) var(--sp-lg)">
+          <div style="font-size:48px;margin-bottom:var(--sp-md)">💙</div>
+          <div style="font-size:20px;font-weight:800;margin-bottom:var(--sp-sm)">Support Equilibrium</div>
+          <p style="font-size:14px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-lg)">
+            If you're here, thank you for using Equilibrium. Building something meaningful for the Ménière's community has been incredibly rewarding, and your presence — whether you donate or not — means everything to me.
+          </p>
+          <p style="font-size:13px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-xl)">
+            I'm committed to keeping Equilibrium free, improving it consistently, and listening to what the community needs. Every update is driven by real feedback from real people managing this condition every day.
+          </p>
+          <p style="font-size:15px;font-weight:600;margin-bottom:var(--sp-lg)">Thank you for being part of this. 💙<br><span style="font-weight:400;color:var(--text-m)">— Jorge</span></p>
+          <a href="https://ko-fi.com/myequilibriumapp" target="_blank" rel="noopener"
+            class="btn btn-primary btn-full"
+            style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:var(--sp-sm)">
+            💙 Support on Ko-fi
+          </a>
+        </div>`;
+    });
+  }
+}
+
 // ── MORE VIEW ──────────────────────────────────────────────────────
 function renderAboutPanel() {
   qs('#panel-about-body').innerHTML = `
@@ -1285,8 +1313,21 @@ function renderAboutPanel() {
       <button class="btn btn-outline" id="btn-view-tutorial" style="margin-bottom:var(--sp-md)">📖 View App Tutorial</button>
       <p style="font-size:11px;color:var(--text-m);line-height:1.7">
         Made with care for the Ménière's community 🌊<br>
-        Open source · No ads · No tracking
+        No ads · No tracking · Free forever
       </p>
+    </div>
+
+    <div class="card" style="border-left:3px solid #5B9B8A;text-align:center">
+      <div style="font-size:22px;margin-bottom:var(--sp-sm)">💙</div>
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">Support Equilibrium</div>
+      <p style="font-size:13px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-md)">
+        If you're here, thank you for using Equilibrium. Building something meaningful for the Ménière's community has been incredibly rewarding, and your presence — whether you donate or not — means everything to me.
+      </p>
+      <a href="https://ko-fi.com/myequilibriumapp" target="_blank" rel="noopener"
+        class="btn btn-primary btn-full"
+        style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px">
+        💙 Support on Ko-fi
+      </a>
     </div>
   `;
   qs('#btn-view-tutorial').addEventListener('click', () => {
@@ -1362,6 +1403,15 @@ function renderMore() {
       <div class="more-content">
         <div class="more-title">About Equilibrium</div>
         <div class="more-sub">App info, privacy & disclaimer</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
+    <div class="more-item" data-action="support">
+      <div class="more-icon" style="background:#EFF3FF">💙</div>
+      <div class="more-content">
+        <div class="more-title">Support Equilibrium</div>
+        <div class="more-sub">Help keep the app free for everyone</div>
       </div>
       <div class="more-arrow">›</div>
     </div>
@@ -2921,6 +2971,7 @@ document.addEventListener('click', e => {
       case 'log-attack':  openPanel('panel-log-attack', ()=>renderLogAttackPanel(null)); break;
       case 'add-med':     openPanel('panel-add-med', renderAddMedPanel); break;
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
+      case 'support':     openSupportPage(); break;
       case 'settings':    openPanel('panel-settings', renderSettingsPanel); break;
       case 'export':      openPanel('panel-export', renderExportPanel); break;
       case 'account':     openPanel('panel-account', renderAccountPanel); break;
