@@ -2677,7 +2677,7 @@ function renderPlateResults(foods, container) {
               <div style="font-size:14px;font-weight:600;color:var(--text)">${f.name.charAt(0).toUpperCase()+f.name.slice(1)}</div>
               <div style="font-size:12px;color:var(--text-m);margin-top:2px">~${f.grams}g · ${f.notes||'estimated'}</div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-                <input type="number" class="plate-sodium-edit" data-idx="${i}" value="${Math.round(f.sodium_mg)}" min="0" style="width:72px;font-size:13px;font-weight:700;color:${Math.round(f.sodium_mg*qtys[i])>400?'var(--danger)':'var(--accent)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--card);text-align:center">
+                <input type="number" class="plate-sodium-edit" data-idx="${i}" value="${Math.round(f.sodium_mg)}" min="0" style="width:72px;font-size:16px;font-weight:700;color:${Math.round(f.sodium_mg*qtys[i])>400?'var(--danger)':'var(--accent)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--card);text-align:center">
                 <span style="font-size:12px;color:var(--text-m)">mg sodium</span>
               </div>
             </div>
