@@ -9,6 +9,41 @@ const HYDRATION_GOAL = 8;
 const CAFFEINE_WARN = 2;
 const ALCOHOL_WARN = 1;
 
+// ── Caffeine / Alcohol keyword detection ─────────────────────────────
+const CAFFEINE_KEYWORDS = ['coffee','espresso','cappuccino','latte','mocha','americano','cold brew','macchiato','cortado','flat white','iced coffee','tea','green tea','black tea','chai','matcha','energy drink','red bull','monster','celsius','bang energy','soda','cola','coke','pepsi','mountain dew','dr pepper'];
+const ALCOHOL_KEYWORDS  = ['beer','wine','vodka','whiskey','whisky','rum','gin','tequila','cocktail','champagne','margarita','ale','lager','stout','porter','cider','hard seltzer','bourbon','brandy','sake','sangria','mimosa','bloody mary','alcohol'];
+
+function detectCaffeineAlcohol(name) {
+  const n = name.toLowerCase();
+  return {
+    hasCaffeine: CAFFEINE_KEYWORDS.some(k => n.includes(k)),
+    hasAlcohol:  ALCOHOL_KEYWORDS.some(k => n.includes(k)),
+  };
+}
+
+// ── Rotating sodium facts ─────────────────────────────────────────────
+const SODIUM_FACTS = [
+  'A single can of chicken noodle soup can contain over 800mg of sodium — more than half the daily limit recommended for Ménière\'s patients.',
+  'Soy sauce is one of the saltiest condiments: just 1 tablespoon contains around 900mg of sodium.',
+  'Deli meats like ham and turkey can pack 400–600mg of sodium per 2-ounce serving — and most sandwiches use far more.',
+  'Frozen pizza can contain 700–1,200mg of sodium per slice. One pizza can exceed the entire recommended daily limit.',
+  'Restaurant meals average 1,500mg of sodium per dish — sometimes more. Cooking at home gives you full control.',
+  'Pickles get their flavor from salt brine. One medium pickle can contain 500–700mg of sodium.',
+  'Ramen noodles — even the "low sodium" varieties — typically contain 600–800mg per packet.',
+  'Bread and rolls are a hidden sodium source. Two slices of regular bread can add 250–400mg without you noticing.',
+  'Cottage cheese is surprisingly salty: one cup can contain up to 700mg of sodium.',
+  'Fast food meals routinely exceed 1,500–2,000mg of sodium in a single sitting.',
+  'Canned tomatoes and tomato sauce are high in sodium — look for "no salt added" versions when cooking.',
+  'Teriyaki and BBQ sauces often contain 300–600mg of sodium per tablespoon. Flavor comes at a cost.',
+  'Even "healthy" salad dressings can contain 200–400mg of sodium per serving. Olive oil and lemon are safe alternatives.',
+  'Processed cheese like American cheese slices can have 400mg of sodium per slice — versus 50mg in fresh mozzarella.',
+];
+
+function getSodiumFact() {
+  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  return SODIUM_FACTS[dayOfYear % SODIUM_FACTS.length];
+}
+
 const K = {
   attacks:'eq_attacks', medications:'eq_meds', doses:'eq_doses',
   sodium:'eq_sodium', hydration:'eq_hydration', stress:'eq_stress',
@@ -543,7 +578,7 @@ function renderHome() {
         <button class="btn btn-outline btn-qa" data-go="symptoms">⚡ Log Attack</button>
         <button class="btn btn-outline btn-qa" data-action="medications">💊 Medications</button>
         <button class="btn btn-outline btn-qa" data-go="wellness">😌 Check In</button>
-        <button class="btn btn-outline btn-qa" data-action="emergency">🚨 Emergency Card</button>
+        <button class="btn btn-outline btn-qa" data-action="report">📋 Doctor Report</button>
       </div>
     </div>
 
@@ -894,12 +929,10 @@ function renderDiet() {
         </div>`).join('')}` : ''}
     </div>
 
-    <!-- High-sodium foods to avoid -->
-    <div class="card">
-      <div class="card-title" style="margin-bottom:10px">🚫 High-Sodium Foods to Avoid</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${['Canned soup','Soy sauce','Pickles','Ramen noodles','Deli meats','Frozen pizza','Fast food','Teriyaki sauce'].map(f=>`<span class="pill pill-danger">${f}</span>`).join('')}
-      </div>
+    <!-- Did you know? -->
+    <div class="card" style="border-left:3px solid var(--danger)">
+      <div class="card-title" style="margin-bottom:8px">💡 High Sodium — Did You Know?</div>
+      <p style="font-size:14px;line-height:1.65;color:var(--text-m)">${getSodiumFact()}</p>
     </div>
 
     <!-- Hydration -->
@@ -913,26 +946,27 @@ function renderDiet() {
 
     <!-- Caffeine & Alcohol -->
     <div class="card">
-      <div class="card-title" style="margin-bottom:var(--sp-md)">☕ Caffeine & Alcohol</div>
+      <div class="card-title" style="margin-bottom:4px">☕ Caffeine & Alcohol</div>
+      <div style="font-size:12px;color:var(--text-m);margin-bottom:var(--sp-md)">Auto-tracked from your food log</div>
 
-      <div style="margin-bottom:var(--sp-md)">
-        <label class="form-label">Coffee / Caffeine (cups today)</label>
-        <div class="stepper">
-          <button class="stepper-btn" data-action="caff-dec">−</button>
-          <div class="stepper-val" id="caff-val">${caff.c}</div>
-          <button class="stepper-btn" data-action="caff-inc">+</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-sm);margin-bottom:var(--sp-md)">
+        <div style="background:var(--surface2);border-radius:12px;padding:var(--sp-sm) var(--sp-md);text-align:center">
+          <div style="font-size:28px;font-weight:800;color:${caff.c>=CAFFEINE_WARN?'var(--warning)':'var(--text)'}">${caff.c}</div>
+          <div style="font-size:12px;color:var(--text-m);margin-top:2px">☕ Caffeine drinks</div>
         </div>
-        ${caff.c >= CAFFEINE_WARN ? '<p style="color:var(--warning);font-size:12px;font-weight:600;margin-top:6px;">⚠️ Caffeine can trigger attacks — consider cutting back</p>' : ''}
+        <div style="background:var(--surface2);border-radius:12px;padding:var(--sp-sm) var(--sp-md);text-align:center">
+          <div style="font-size:28px;font-weight:800;color:${caff.a>=ALCOHOL_WARN?'var(--danger)':'var(--text)'}">${caff.a}</div>
+          <div style="font-size:12px;color:var(--text-m);margin-top:2px">🍷 Alcohol drinks</div>
+        </div>
       </div>
 
-      <div>
-        <label class="form-label">Alcohol (drinks today)</label>
-        <div class="stepper">
-          <button class="stepper-btn" data-action="alc-dec">−</button>
-          <div class="stepper-val" id="alc-val">${caff.a}</div>
-          <button class="stepper-btn" data-action="alc-inc">+</button>
-        </div>
-        ${caff.a >= ALCOHOL_WARN ? '<p style="color:var(--danger);font-size:12px;font-weight:600;margin-top:6px;">⚠️ Alcohol can worsen Ménière\'s symptoms</p>' : ''}
+      ${caff.c >= CAFFEINE_WARN ? '<p style="color:var(--warning);font-size:12px;font-weight:600;margin-bottom:var(--sp-sm);">⚠️ High caffeine intake detected today</p>' : ''}
+      ${caff.a >= ALCOHOL_WARN  ? '<p style="color:var(--danger);font-size:12px;font-weight:600;margin-bottom:var(--sp-sm);">⚠️ Alcohol detected today</p>' : ''}
+
+      <div style="border-top:1px solid var(--border);padding-top:var(--sp-sm);margin-top:var(--sp-xs)">
+        <div style="font-size:12px;font-weight:700;color:var(--text-m);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">How these affect Ménière's</div>
+        <p style="font-size:12px;color:var(--text-m);line-height:1.6;margin-bottom:6px">☕ <strong>Caffeine</strong> constricts blood vessels and can reduce blood flow to the inner ear, potentially worsening tinnitus and triggering vertigo episodes.</p>
+        <p style="font-size:12px;color:var(--text-m);line-height:1.6">🍷 <strong>Alcohol</strong> changes the volume and composition of inner ear fluid, which can directly trigger vertigo and increase hearing fluctuations in Ménière's patients.</p>
       </div>
     </div>
   `;
@@ -2745,6 +2779,7 @@ function renderPlateResults(foods, container) {
         const sodium = Math.round(f.sodium_mg * qtys[i]);
         const name = f.name.charAt(0).toUpperCase() + f.name.slice(1);
         DB.addSodiumItem(S.viewDate, { n: name, s: sodium, srv: `~${f.grams}g`, f: sodium > 600 });
+        autoTrackCaffeineAlcohol(name, S.viewDate);
       });
       const total = foods.reduce((sum, f, i) => sum + Math.round(f.sodium_mg * qtys[i]), 0);
       closePanel();
@@ -2814,11 +2849,22 @@ function setupCustomFood() {
 
 function addFoodToLog(food) {
   DB.addSodiumItem(S.viewDate, food);
+  autoTrackCaffeineAlcohol(food.n, S.viewDate);
   closePanel();
   const currentTab = S.tab;
   if (currentTab === 'diet') renderDiet();
   else if (currentTab === 'home') renderHome();
   showToast(`+${food.s}mg sodium logged`);
+}
+
+function autoTrackCaffeineAlcohol(foodName, date) {
+  const { hasCaffeine, hasAlcohol } = detectCaffeineAlcohol(foodName);
+  if (!hasCaffeine && !hasAlcohol) return;
+  const ca = DB.caffFor(date);
+  if (hasCaffeine) { ca.c = (ca.c || 0) + 1; showToast('☕ Caffeine drink detected — tracker updated'); }
+  if (hasAlcohol)  { ca.a = (ca.a || 0) + 1; showToast('🍷 Alcohol detected — tracker updated'); }
+  DB.saveCaff(date, ca);
+  if (window.FireSync?.isSignedIn()) FireSync.push('eq_caff', DB.g(K.caff));
 }
 
 // ── CALENDAR PICKER ──────────────────────────────────────────────
