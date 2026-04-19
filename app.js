@@ -863,7 +863,7 @@ function renderDiet() {
       <div class="card-hdr">
         <div><div class="card-title">🧂 Sodium</div><div class="card-sub">Goal: &lt;${sGoal}mg</div></div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" data-action="scan-plate">📸 Scan</button>
+          <button class="btn btn-ghost btn-sm" data-action="scan-plate">✨ AI Camera</button>
           <button class="btn btn-ghost btn-sm" data-action="food-search">+ Add</button>
         </div>
       </div>
