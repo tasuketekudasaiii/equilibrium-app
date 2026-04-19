@@ -862,7 +862,10 @@ function renderDiet() {
     <div class="card">
       <div class="card-hdr">
         <div><div class="card-title">🧂 Sodium</div><div class="card-sub">Goal: &lt;${sGoal}mg</div></div>
-        <button class="btn btn-ghost btn-sm" data-action="food-search">+ Add Food</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" data-action="scan-plate">📸 Scan</button>
+          <button class="btn btn-ghost btn-sm" data-action="food-search">+ Add</button>
+        </div>
       </div>
       <div class="meter-hdr"><span>${sodium}mg</span><span>${sGoal}mg goal</span></div>
       <div class="meter-bar"><div class="meter-fill ${sPct>=100?'danger':sPct>=80?'warn':''}" style="width:${sPct}%"></div></div>
@@ -2575,6 +2578,160 @@ function showScannerFallback() {
   });
 }
 
+// ── Plate Scanner ────────────────────────────────────────────────────
+const VISION_WORKER = 'https://equilibrium-vision.midorilabs.workers.dev';
+
+function openPlateScanner() {
+  openPanel('panel-plate-scanner', renderPlateScanner);
+}
+
+function renderPlateScanner() {
+  qs('#panel-plate-body').innerHTML = `
+    <div style="text-align:center;padding:var(--sp-lg) 0">
+      <div style="font-size:48px;margin-bottom:var(--sp-md)">📸</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">Take a photo of your meal</div>
+      <div style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-lg);line-height:1.5">AI will identify each food item and estimate the sodium content</div>
+      <label class="btn btn-primary btn-full" style="cursor:pointer;margin-bottom:var(--sp-sm)">
+        📷 Take Photo
+        <input type="file" accept="image/*" capture="environment" id="plate-photo-input" style="display:none">
+      </label>
+      <label class="btn btn-outline btn-full" style="cursor:pointer">
+        🖼️ Choose from Library
+        <input type="file" accept="image/*" id="plate-library-input" style="display:none">
+      </label>
+    </div>
+    <div id="plate-results"></div>
+  `;
+  qs('#plate-photo-input').addEventListener('change', e => handlePlatePhoto(e.target.files[0]));
+  qs('#plate-library-input').addEventListener('change', e => handlePlatePhoto(e.target.files[0]));
+}
+
+async function handlePlatePhoto(file) {
+  if (!file) return;
+  const resultsEl = qs('#plate-results');
+
+  // Show loading
+  resultsEl.innerHTML = `
+    <div style="text-align:center;padding:var(--sp-xl) 0">
+      <div style="font-size:32px;margin-bottom:var(--sp-md)">🔍</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text)">Analyzing your meal…</div>
+      <div style="font-size:12px;color:var(--text-m);margin-top:6px">This takes about 5–10 seconds</div>
+    </div>`;
+
+  try {
+    // Compress image
+    const base64 = await compressImage(file, 800, 0.7);
+    const mediaType = file.type || 'image/jpeg';
+
+    // Send to worker
+    const resp = await fetch(VISION_WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64, mediaType })
+    });
+
+    const data = await resp.json();
+    if (!data.foods || data.foods.length === 0) {
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">🤔</div><div class="empty-title">Couldn't identify foods</div><div class="empty-text">Try a clearer photo or better lighting</div></div>`;
+      return;
+    }
+
+    renderPlateResults(data.foods, resultsEl);
+  } catch (err) {
+    resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Something went wrong</div><div class="empty-text">Check your connection and try again</div></div>`;
+  }
+}
+
+function compressImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > h && w > maxSize) { h = h * maxSize / w; w = maxSize; }
+      else if (h > maxSize) { w = w * maxSize / h; h = maxSize; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(dataUrl.split(',')[1]); // return base64 only
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function renderPlateResults(foods, container) {
+  // Store quantities per item
+  const qtys = foods.map(() => 1);
+
+  function render() {
+    const totalSodium = foods.reduce((sum, f, i) => sum + Math.round(f.sodium_mg * qtys[i]), 0);
+    container.innerHTML = `
+      <div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:var(--sp-sm)">🍽️ Found ${foods.length} item${foods.length>1?'s':''}</div>
+      ${foods.map((f, i) => `
+        <div class="card" style="margin-bottom:var(--sp-sm);padding:var(--sp-sm) var(--sp-md)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:600;color:var(--text)">${f.name.charAt(0).toUpperCase()+f.name.slice(1)}</div>
+              <div style="font-size:12px;color:var(--text-m);margin-top:2px">~${f.grams}g · ${f.notes||'estimated'}</div>
+              <div style="font-size:13px;font-weight:700;color:${Math.round(f.sodium_mg*qtys[i])>400?'var(--danger)':'var(--accent)'};margin-top:4px">${Math.round(f.sodium_mg*qtys[i])}mg sodium</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+              <button class="food-qty-btn food-qty-dec" data-idx="${i}" type="button">−</button>
+              <span style="font-size:14px;font-weight:700;min-width:20px;text-align:center">${qtys[i]}×</span>
+              <button class="food-qty-btn food-qty-inc" data-idx="${i}" type="button">+</button>
+            </div>
+          </div>
+        </div>`).join('')}
+      <div class="card" style="background:var(--accent-faint);border:1.5px solid var(--accent)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Total Sodium</div>
+            <div style="font-size:11px;color:var(--text-m)">For this meal</div>
+          </div>
+          <div style="font-size:20px;font-weight:800;color:var(--accent)">${totalSodium}mg</div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-log-plate" style="margin-top:var(--sp-md)">Log All Items</button>
+      <button class="btn btn-outline btn-full" id="btn-rescan-plate" style="margin-top:var(--sp-sm)">📸 Scan Again</button>
+    `;
+
+    // Qty buttons
+    container.querySelectorAll('.food-qty-dec').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.idx;
+        if (qtys[i] > 1) { qtys[i]--; render(); }
+      });
+    });
+    container.querySelectorAll('.food-qty-inc').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.idx;
+        qtys[i]++; render();
+      });
+    });
+
+    // Log all
+    qs('#btn-log-plate').addEventListener('click', () => {
+      foods.forEach((f, i) => {
+        const sodium = Math.round(f.sodium_mg * qtys[i]);
+        const name = f.name.charAt(0).toUpperCase() + f.name.slice(1);
+        DB.addSodium(S.viewDate, { n: name, s: sodium, srv: `~${f.grams}g`, f: sodium > 600 });
+      });
+      closePanel();
+      renderDiet();
+      showToast(`✅ Logged ${foods.length} item${foods.length>1?'s':''} — ${foods.reduce((sum,f,i)=>sum+Math.round(f.sodium_mg*qtys[i]),0)}mg sodium`);
+      if (window.FireSync?.isSignedIn()) FireSync.push('eq_sodium', DB.all('eq_sodium'));
+    });
+
+    // Rescan
+    qs('#btn-rescan-plate').addEventListener('click', () => renderPlateScanner());
+  }
+
+  render();
+}
+
 function setupFoodAddButtons(container) {
   container.querySelectorAll('.food-item-edit').forEach(item => {
     const input   = item.querySelector('.food-sodium-edit');
@@ -2973,6 +3130,7 @@ document.addEventListener('click', e => {
         break;
       }
       case 'food-search': renderFoodSearch(); break;
+      case 'scan-plate':  openPlateScanner(); break;
       case 'medications': openPanel('panel-medications', renderMedicationsPanel); break;
       case 'triggers':    openPanel('panel-triggers', renderTriggersPanel); break;
       case 'report':      openPanel('panel-report', renderReportPanel); break;
