@@ -1243,6 +1243,18 @@ function renderAboutPanel() {
     </div>
 
     <div class="card">
+      <div class="card-title" style="margin-bottom:var(--sp-md)">💛 Why Equilibrium Exists</div>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m)">In 2020, our life changed.</p>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">My wife started experiencing symptoms of Ménière's disease, and nothing has been quite the same since. I don't understand what it's physically like to live with Ménière's, but I have lived every side of this condition with her. The fear of not knowing when the next drop attack will come. The vertigo that arrives without warning and takes everything with it. The nausea, the exhaustion, the days where simply getting up feels like a victory.</p>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">I understand what it's like going to many medical appointments, watching her try different medications and procedures, hoping something would finally stick. I have seen how a condition that lives inside your ear can reach into every corner of your life and rearrange it completely.</p>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">Through all of it, I never stopped asking myself what more I could do.</p>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">I started a little project that is now called Equilibrium.</p>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">If helping my wife track her daily habits, her sodium, her stress, her sleep, and her attacks could make her even a little more aware of what triggers her symptoms then maybe she could take back some control. And if it could help her, it could help others too.</p>
+      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">That's why I dedicate this app, with all my love, to my wife Ana Isabel. You deserve to live every day free of pain, free of fear, and full of joy. This project can now help others because of you. Thank you. 💙</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text);margin-top:var(--sp-md);text-align:right">Jorge</p>
+    </div>
+
+    <div class="card">
       <div class="card-title" style="margin-bottom:var(--sp-sm)">What is Ménière's Disease?</div>
       <p style="font-size:14px;line-height:1.65;color:var(--text-m)">
         Ménière's disease is a chronic inner-ear condition that causes unpredictable episodes of
@@ -1312,18 +1324,6 @@ function renderAboutPanel() {
         Made with care for the Ménière's community 🌊<br>
         No ads · No tracking · Free forever
       </p>
-    </div>
-
-    <div class="card">
-      <div class="card-title" style="margin-bottom:var(--sp-md)">💛 Why Equilibrium Exists</div>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m)">In 2020, our life changed.</p>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">My wife started experiencing symptoms of Ménière's disease, and nothing has been quite the same since. I don't understand what it's physically like to live with Ménière's, but I have lived every side of this condition with her. The fear of not knowing when the next drop attack will come. The vertigo that arrives without warning and takes everything with it. The nausea, the exhaustion, the days where simply getting up feels like a victory.</p>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">I understand what it's like going to many medical appointments, watching her try different medications and procedures, hoping something would finally stick. I have seen how a condition that lives inside your ear can reach into every corner of your life and rearrange it completely.</p>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">Through all of it, I never stopped asking myself what more I could do.</p>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">I started a little project that is now called Equilibrium.</p>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">If helping my wife track her daily habits, her sodium, her stress, her sleep, and her attacks could make her even a little more aware of what triggers her symptoms then maybe she could take back some control. And if it could help her, it could help others too.</p>
-      <p style="font-size:14px;line-height:1.75;color:var(--text-m);margin-top:var(--sp-sm)">That's why I dedicate this app, with all my love, to my wife Ana Isabel. You deserve to live every day free of pain, free of fear, and full of joy. This project can now help others because of you. Thank you. 💙</p>
-      <p style="font-size:13px;font-weight:600;color:var(--text);margin-top:var(--sp-md);text-align:right">Jorge</p>
     </div>
 
     <div class="card" style="border-left:3px solid #5B9B8A;text-align:center">
