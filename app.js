@@ -2363,14 +2363,7 @@ function renderFoodResults(query) {
   let html = '';
 
   if (q.length === 0) {
-    // Show recent foods when no query
-    const recent = getRecentFoods();
-    if (recent.length > 0) {
-      html += `<div style="font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px;padding:var(--sp-sm) 0 4px">Recently logged</div>`;
-      html += recent.map(f => foodItemHTML(f, '')).join('');
-    } else {
-      html += `<div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">Search for a food</div><div class="empty-text">Type any food name to search the USDA database of 1M+ foods</div></div>`;
-    }
+    html += `<div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">Search for a food</div><div class="empty-text">Type any food name to search the USDA database of 1M+ foods</div></div>`;
   } else {
     // Local FOOD_DB filter as instant results
     const localResults = FOOD_DB.filter(f => f.n.toLowerCase().includes(q)).slice(0, 8);
@@ -2676,7 +2669,10 @@ function renderPlateResults(foods, container) {
             <div style="flex:1">
               <div style="font-size:14px;font-weight:600;color:var(--text)">${f.name.charAt(0).toUpperCase()+f.name.slice(1)}</div>
               <div style="font-size:12px;color:var(--text-m);margin-top:2px">~${f.grams}g · ${f.notes||'estimated'}</div>
-              <div style="font-size:13px;font-weight:700;color:${Math.round(f.sodium_mg*qtys[i])>400?'var(--danger)':'var(--accent)'};margin-top:4px">${Math.round(f.sodium_mg*qtys[i])}mg sodium</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+                <input type="number" class="plate-sodium-edit" data-idx="${i}" value="${Math.round(f.sodium_mg)}" min="0" style="width:72px;font-size:13px;font-weight:700;color:${Math.round(f.sodium_mg*qtys[i])>400?'var(--danger)':'var(--accent)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--card);text-align:center">
+                <span style="font-size:12px;color:var(--text-m)">mg sodium</span>
+              </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
               <button class="food-qty-btn food-qty-dec" data-idx="${i}" type="button">−</button>
@@ -2698,6 +2694,15 @@ function renderPlateResults(foods, container) {
       <button class="btn btn-primary btn-full" id="btn-log-plate" style="margin-top:var(--sp-md)">Log All Items</button>
       <button class="btn btn-outline btn-full" id="btn-rescan-plate" style="margin-top:var(--sp-sm)">📸 Scan Again</button>
     `;
+
+    // Sodium edits — update food object directly
+    container.querySelectorAll('.plate-sodium-edit').forEach(input => {
+      input.addEventListener('change', () => {
+        const i = +input.dataset.idx;
+        foods[i].sodium_mg = Math.max(0, parseInt(input.value) || 0);
+        render();
+      });
+    });
 
     // Qty buttons
     container.querySelectorAll('.food-qty-dec').forEach(btn => {
