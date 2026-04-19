@@ -858,14 +858,21 @@ function renderDiet() {
     ${!isToday ? `<div class="past-banner">📅 Viewing diet data for ${fmtDate(t)}</div>` : ''}
     <div class="sec-hdr"><div class="sec-title">🥗 Diet Tracker</div></div>
 
+    <!-- AI Camera CTA -->
+    <div data-action="scan-plate" style="cursor:pointer;background:linear-gradient(135deg,#5B9B8A,#3d7a6a);border-radius:16px;padding:16px 20px;margin-bottom:var(--sp-md);display:flex;align-items:center;gap:16px;box-shadow:0 4px 16px rgba(91,155,138,0.35)">
+      <div style="font-size:36px;flex-shrink:0">📸</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:800;color:white;margin-bottom:2px">AI Powered Camera</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.4">Take a photo of your meal — AI identifies every ingredient and calculates sodium instantly</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);color:white;padding:4px 8px;border-radius:20px;flex-shrink:0">NEW ✨</div>
+    </div>
+
     <!-- Sodium -->
     <div class="card">
       <div class="card-hdr">
         <div><div class="card-title">🧂 Sodium</div><div class="card-sub">Goal: &lt;${sGoal}mg</div></div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" data-action="scan-plate">✨ AI Camera</button>
-          <button class="btn btn-ghost btn-sm" data-action="food-search">+ Add</button>
-        </div>
+        <button class="btn btn-ghost btn-sm" data-action="food-search">+ Add Food</button>
       </div>
       <div class="meter-hdr"><span>${sodium}mg</span><span>${sGoal}mg goal</span></div>
       <div class="meter-bar"><div class="meter-fill ${sPct>=100?'danger':sPct>=80?'warn':''}" style="width:${sPct}%"></div></div>
@@ -2279,7 +2286,7 @@ function renderFoodSearch() {
   openPanel('panel-food-search', () => {
     qs('#food-search-input').value = '';
     renderFoodResults('');
-    qs('#food-search-input').focus();
+    // intentionally no autofocus — avoid keyboard jumping
     // Add AI camera button next to input if not already there
     const inp = qs('#food-search-input');
     if (inp && !qs('#btn-scan-barcode')) {
