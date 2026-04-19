@@ -2280,15 +2280,15 @@ function renderFoodSearch() {
     qs('#food-search-input').value = '';
     renderFoodResults('');
     qs('#food-search-input').focus();
-    // Add scan button next to input if not already there
+    // Add AI camera button next to input if not already there
     const inp = qs('#food-search-input');
     if (inp && !qs('#btn-scan-barcode')) {
       const btn = document.createElement('button');
       btn.id = 'btn-scan-barcode';
       btn.className = 'btn btn-ghost btn-sm';
-      btn.textContent = '📷';
+      btn.textContent = '✨ AI Camera';
       btn.style.cssText = 'margin-top:6px;width:100%';
-      btn.addEventListener('click', startScanner);
+      btn.addEventListener('click', () => { closePanel(); openPlateScanner(); });
       inp.parentNode.appendChild(btn);
     }
   });
@@ -2717,12 +2717,13 @@ function renderPlateResults(foods, container) {
       foods.forEach((f, i) => {
         const sodium = Math.round(f.sodium_mg * qtys[i]);
         const name = f.name.charAt(0).toUpperCase() + f.name.slice(1);
-        DB.addSodium(S.viewDate, { n: name, s: sodium, srv: `~${f.grams}g`, f: sodium > 600 });
+        DB.addSodiumItem(S.viewDate, { n: name, s: sodium, srv: `~${f.grams}g`, f: sodium > 600 });
       });
+      const total = foods.reduce((sum, f, i) => sum + Math.round(f.sodium_mg * qtys[i]), 0);
       closePanel();
       renderDiet();
-      showToast(`✅ Logged ${foods.length} item${foods.length>1?'s':''} — ${foods.reduce((sum,f,i)=>sum+Math.round(f.sodium_mg*qtys[i]),0)}mg sodium`);
-      if (window.FireSync?.isSignedIn()) FireSync.push('eq_sodium', DB.all('eq_sodium'));
+      showToast(`✅ Logged ${foods.length} item${foods.length>1?'s':''} — ${total}mg sodium`);
+      if (window.FireSync?.isSignedIn()) FireSync.push('eq_sodium', DB.sodiumLog());
     });
 
     // Rescan
