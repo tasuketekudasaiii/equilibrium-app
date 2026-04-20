@@ -1363,7 +1363,6 @@ function renderAboutPanel() {
     </div>
 
     <div style="text-align:center;margin-top:var(--sp-lg);padding-bottom:var(--sp-md)">
-      <button class="btn btn-outline" id="btn-view-tutorial" style="margin-bottom:var(--sp-sm)">📖 View App Tutorial</button>
       <button class="btn btn-primary btn-full" id="btn-view-spotlight" style="margin-bottom:var(--sp-md)">✨ Take the Feature Tour</button>
       <p style="font-size:11px;color:var(--text-m);line-height:1.7">
         Made with care for the Ménière's community 🌊<br>
@@ -1384,10 +1383,6 @@ function renderAboutPanel() {
       </a>
     </div>
   `;
-  qs('#btn-view-tutorial').addEventListener('click', () => {
-    closePanel();
-    Tutorial.show();
-  });
   qs('#btn-view-spotlight').addEventListener('click', () => {
     closePanel();
     Spotlight.show();
@@ -3494,106 +3489,6 @@ document.addEventListener('submit', e => {
 });
 
 // ── TUTORIAL ──────────────────────────────────────────────────────
-const TUTORIAL_VERSION = 4; // bump this whenever tutorial content changes
-
-const TUTORIAL_STEPS = [
-  {
-    icon: '🌊',
-    title: 'Welcome to Equilibrium',
-    body: 'Your personal companion for managing Ménière\'s disease. Track symptoms, sodium, wellness, and more — all in one place. This quick tour shows you everything.',
-  },
-  {
-    icon: '🏠',
-    title: 'Your Daily Dashboard',
-    body: 'The <strong>Home</strong> tab shows today\'s sodium, hydration, attacks this week, and stress level. It also shows <strong>live weather and barometric pressure</strong> — pressure changes are a known Ménière\'s trigger. Use the ← → arrows to review any past day.',
-  },
-  {
-    icon: '⚡',
-    title: 'Log Attacks',
-    body: 'On the <strong>Symptoms</strong> tab, tap the attack button to log instantly. Record intensity (1–10), duration (1–60 min), symptoms experienced, and any notes. Every attack is timestamped and saved to your history.',
-  },
-  {
-    icon: '🧂',
-    title: 'Track Your Sodium',
-    body: 'The <strong>Diet</strong> tab lets you search and log food. Results come from the <strong>USDA FoodData Central</strong> database with over 1 million foods. You can also scan a barcode or search by name — and edit the sodium amount before adding.',
-  },
-  {
-    icon: '🌿',
-    title: 'Daily Wellness Check-In',
-    body: 'On the <strong>Wellness</strong> tab, log your mood, stress level, hours of sleep, and trigger beverages like caffeine and alcohol. Consistent daily check-ins help reveal patterns over time.',
-  },
-  {
-    icon: '☰',
-    title: 'More Tools',
-    body: 'The <strong>More</strong> tab has everything else: <strong>Medications</strong> to track doses, <strong>Trigger Insights</strong> to spot patterns, an <strong>Emergency Card</strong> with your info for first responders, and <strong>Settings</strong> to customize your goals.',
-  },
-  {
-    icon: '📋',
-    title: 'Doctor Report',
-    body: 'Under More → <strong>Doctor Report</strong>, choose any date range and generate a beautiful PDF summary: attack history with barometric pressure readings, sodium averages, sleep, stress, and medications. <strong>Print it, download it, or send it</strong> directly to your doctor.',
-  },
-  {
-    icon: '📱',
-    title: 'Install & Back Up',
-    body: '<strong>iPhone:</strong> open in Safari → tap <strong>(···)</strong> → Share → <strong>More (···)</strong> → "Add to Home Screen".<br><strong>Android:</strong> open in Chrome → tap the <strong>three dots menu</strong> → "Install app".<br><br>It opens fullscreen like a native app with no browser bar.<br><br><strong>Back up your data:</strong> go to More → Account & Backup and create a free account — your health history syncs to the cloud and is never lost.',
-  },
-];
-
-const Tutorial = {
-  current: 0,
-
-  show() {
-    this.current = 0;
-    qs('#tutorial-overlay').classList.remove('hidden');
-    this.render();
-  },
-
-  hide() {
-    qs('#tutorial-overlay').classList.add('hidden');
-  },
-
-  markSeen() {
-    localStorage.setItem(K.tutorialSeen, String(TUTORIAL_VERSION));
-    this.hide();
-  },
-
-  render() {
-    const step  = TUTORIAL_STEPS[this.current];
-    const total = TUTORIAL_STEPS.length;
-    const isLast = this.current === total - 1;
-
-    qs('#tutorial-step').innerHTML = `
-      <div class="tut-icon">${step.icon}</div>
-      <div class="tut-title">${step.title}</div>
-      <div class="tut-body">${step.body}</div>
-    `;
-
-    // Dots
-    qs('#tutorial-dots').innerHTML = TUTORIAL_STEPS.map((_, i) =>
-      `<div class="tut-dot${i === this.current ? ' active' : ''}"></div>`
-    ).join('');
-
-    // Buttons
-    qs('#btn-tut-prev').style.visibility = this.current > 0 ? 'visible' : 'hidden';
-    qs('#btn-tut-next').textContent = isLast ? "Let's go! 🌊" : 'Next →';
-  },
-};
-
-// Tutorial button wiring (runs once after DOM ready)
-function initTutorial() {
-  qs('#btn-tut-skip').addEventListener('click', () => Tutorial.markSeen());
-  qs('#btn-tut-next').addEventListener('click', () => {
-    if (Tutorial.current < TUTORIAL_STEPS.length - 1) {
-      Tutorial.current++;
-      Tutorial.render();
-    } else {
-      Tutorial.markSeen();
-    }
-  });
-  qs('#btn-tut-prev').addEventListener('click', () => {
-    if (Tutorial.current > 0) { Tutorial.current--; Tutorial.render(); }
-  });
-}
 
 // ── SPOTLIGHT TUTORIAL ───────────────────────────────────────────────
 const SPOTLIGHT_VERSION = 1;
@@ -4041,7 +3936,6 @@ function init() {
   }
 
   // Wire tutorial buttons
-  initTutorial();
   initSpotlight();
 
   // Wire weekly summary close button
