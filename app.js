@@ -3567,53 +3567,79 @@ const Spotlight = {
   },
 
   _clearHighlight() {
-    const svg = qs('#spotlight-svg');
-    if (svg) svg.innerHTML = '';
+    const W = window.innerWidth, H = window.innerHeight;
+    // Collapse all panels to cover full screen (no hole)
+    const s = (id, t, l, w, h) => {
+      const el = qs(id);
+      if (el) Object.assign(el.style, { top: t+'px', left: l+'px', width: w+'px', height: h+'px' });
+    };
+    s('#spot-top',    0, 0, W, H);
+    s('#spot-bottom', H, 0, W, 0);
+    s('#spot-left',   0, 0, 0, H);
+    s('#spot-right',  0, W, 0, H);
+    const ring = qs('#spot-ring');
+    if (ring) ring.style.opacity = '0';
   },
 
   _highlightElement(el) {
-    const svg = qs('#spotlight-svg');
-    if (!svg) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    const pad = 10;
 
     if (!el) {
-      // No target — just dark overlay, no hole
-      svg.innerHTML = `<rect width="100%" height="100%" fill="rgba(0,0,0,0.75)"/>`;
+      // No target — full dark screen
+      const s = (id, t, l, w, h) => {
+        const e = qs(id);
+        if (e) Object.assign(e.style, { top: t+'px', left: l+'px', width: w+'px', height: h+'px' });
+      };
+      s('#spot-top',    0, 0, W, H);
+      s('#spot-bottom', H, 0, W, 0);
+      s('#spot-left',   0, 0, 0, H);
+      s('#spot-right',  0, W, 0, H);
+      const ring = qs('#spot-ring');
+      if (ring) ring.style.opacity = '0';
+      // Card in center
+      const card = qs('#spotlight-card');
+      if (card) { card.style.top = '50%'; card.style.bottom = 'auto'; card.style.transform = 'translateY(-50%)'; }
       return;
     }
 
     const r = el.getBoundingClientRect();
-    const pad = 8;
-    const x = r.left - pad;
-    const y = r.top - pad;
-    const w = r.width + pad * 2;
-    const h = r.height + pad * 2;
-    const rx = 12;
-    const W = window.innerWidth;
-    const H = window.innerHeight;
+    const x = Math.max(0, r.left - pad);
+    const y = Math.max(0, r.top - pad);
+    const x2 = Math.min(W, r.right + pad);
+    const y2 = Math.min(H, r.bottom + pad);
+    const w = x2 - x;
+    const h = y2 - y;
 
-    // SVG with cutout hole using evenodd fill rule
-    svg.innerHTML = `
-      <defs>
-        <mask id="spotlight-mask">
-          <rect width="${W}" height="${H}" fill="white"/>
-          <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="black"/>
-        </mask>
-      </defs>
-      <rect width="${W}" height="${H}" fill="rgba(0,0,0,0.78)" mask="url(#spotlight-mask)"/>
-      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="none" stroke="#5B9B8A" stroke-width="2.5"/>
-    `;
+    // 4 dark panels around the hole
+    const set = (id, t, l, pw, ph) => {
+      const e = qs(id);
+      if (e) Object.assign(e.style, { top: t+'px', left: l+'px', width: pw+'px', height: ph+'px' });
+    };
+    set('#spot-top',    0,  0,  W,   y);
+    set('#spot-bottom', y2, 0,  W,   H - y2);
+    set('#spot-left',   y,  0,  x,   h);
+    set('#spot-right',  y,  x2, W - x2, h);
 
-    // Position tooltip card above or below the element
+    // Green ring
+    const ring = qs('#spot-ring');
+    if (ring) {
+      Object.assign(ring.style, {
+        top: y+'px', left: x+'px', width: w+'px', height: h+'px', opacity: '1'
+      });
+    }
+
+    // Position card above or below
     const card = qs('#spotlight-card');
-    const cardH = 220;
-    if (y > H / 2) {
-      // element is in bottom half — card goes above
-      card.style.bottom = `${H - y + 16}px`;
-      card.style.top = 'auto';
-    } else {
-      // element is in top half — card goes below
-      card.style.top = `${y + h + 16}px`;
-      card.style.bottom = 'auto';
+    if (card) {
+      card.style.transform = '';
+      if (y > H * 0.5) {
+        card.style.bottom = `${H - y + 12}px`;
+        card.style.top = 'auto';
+      } else {
+        card.style.top = `${y2 + 12}px`;
+        card.style.bottom = 'auto';
+      }
     }
   },
 
@@ -4042,7 +4068,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '27';
+const APP_VERSION = '28';
 async function checkForAppUpdate() {
   try {
     const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });

@@ -216,7 +216,11 @@
 
   <!-- ── Spotlight Tutorial ──────────────────── -->
   <div id="spotlight-overlay" class="spotlight-overlay hidden">
-    <svg class="spotlight-svg" id="spotlight-svg"></svg>
+    <div id="spot-top"    class="spot-panel"></div>
+    <div id="spot-bottom" class="spot-panel"></div>
+    <div id="spot-left"   class="spot-panel"></div>
+    <div id="spot-right"  class="spot-panel"></div>
+    <div id="spot-ring"></div>
     <div class="spotlight-card" id="spotlight-card">
       <button class="spotlight-skip" id="btn-spotlight-skip">Skip</button>
       <div class="spotlight-dots" id="spotlight-dots"></div>
@@ -278,7 +282,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <!-- App logic -->
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 <!-- Firebase sync (after app.js so it can call renderHome etc) -->
 <script src="firebase.js?v=2"></script>
 </body>
