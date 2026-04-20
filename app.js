@@ -3728,6 +3728,11 @@ function showWeeklySummary() {
 
   const attacks = DB.attacks();
   const lastWeekAtk = attacks.filter(a => a.date >= lastMon && a.date <= lastSun);
+
+  // Don't show if user has no data at all from last week (brand new user)
+  const hasAnySodium = Array.from({length:7},(_,i)=>shiftDate(lastMon,i)).some(d => DB.totalSodium(d) > 0);
+  const hasAnySleep  = Array.from({length:7},(_,i)=>shiftDate(lastMon,i)).some(d => !!DB.sleepFor(d));
+  if (lastWeekAtk.length === 0 && !hasAnySodium && !hasAnySleep) return;
   const prevMon = shiftDate(lastMon, -7);
   const prevSun = shiftDate(lastMon, -1);
   const prevWeekAtk = attacks.filter(a => a.date >= prevMon && a.date <= prevSun);
@@ -3918,20 +3923,29 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '35';
+const APP_VERSION = '36';
+let _updatePending = false;
+
 async function checkForAppUpdate() {
   try {
     const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
     const text = await resp.text();
     const match = text.match(/app\.js\?v=(\d+)/);
     if (match && match[1] !== APP_VERSION) {
-      showUpdateBanner();
+      _updatePending = true;
+      // If no attack is in progress, reload silently right away
+      if (!S.attack) {
+        window.location.reload();
+      } else {
+        // Attack in progress — show banner so user can choose when to refresh
+        showUpdateBanner();
+      }
     }
   } catch {}
 }
 
 function showUpdateBanner() {
-  if (qs('#update-banner')) return; // already showing
+  if (qs('#update-banner')) return;
   const banner = document.createElement('div');
   banner.id = 'update-banner';
   banner.style.cssText = `
@@ -3947,7 +3961,14 @@ function showUpdateBanner() {
   document.body.prepend(banner);
 }
 
-// Check on load and every 5 minutes when app is visible
+// Also reload when user returns to the app and an update is waiting
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _updatePending && !S.attack) {
+    window.location.reload();
+  }
+});
+
+// Check on load (after 3s) and every 5 minutes when visible
 setTimeout(checkForAppUpdate, 3000);
 setInterval(() => { if (!document.hidden) checkForAppUpdate(); }, 5 * 60 * 1000);
 
