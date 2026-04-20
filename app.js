@@ -4075,11 +4075,8 @@ function init() {
     }, 300);
   }
 
-  // Show tutorial on first launch OR when tutorial content has been updated
-  const seenVer = parseInt(localStorage.getItem(K.tutorialSeen) || '0');
-  if (seenVer < TUTORIAL_VERSION) {
-    setTimeout(() => Tutorial.show(), 400);
-  }
+  // Old tutorial — mark as seen so it never auto-shows (use spotlight instead)
+  localStorage.setItem(K.tutorialSeen, String(TUTORIAL_VERSION));
 
   // Show weekly summary on Mondays (once per week)
   const todayD = new Date();
