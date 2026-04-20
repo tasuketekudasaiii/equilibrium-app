@@ -1363,7 +1363,6 @@ function renderAboutPanel() {
     </div>
 
     <div style="text-align:center;margin-top:var(--sp-lg);padding-bottom:var(--sp-md)">
-      <button class="btn btn-primary btn-full" id="btn-view-spotlight" style="margin-bottom:var(--sp-md)">✨ Take the Feature Tour</button>
       <p style="font-size:11px;color:var(--text-m);line-height:1.7">
         Made with care for the Ménière's community 🌊<br>
         No ads · No tracking · Free forever
@@ -1383,10 +1382,6 @@ function renderAboutPanel() {
       </a>
     </div>
   `;
-  qs('#btn-view-spotlight').addEventListener('click', () => {
-    closePanel();
-    Spotlight.show();
-  });
 }
 
 function renderMore() {
@@ -3488,220 +3483,63 @@ document.addEventListener('submit', e => {
   }
 });
 
-// ── TUTORIAL ──────────────────────────────────────────────────────
 
-// ── SPOTLIGHT TUTORIAL ───────────────────────────────────────────────
-const SPOTLIGHT_VERSION = 1;
+// ── WELCOME TUTORIAL ─────────────────────────────────────────────
+const TUTORIAL_VERSION = 4;
 
-const SPOTLIGHT_STEPS = [
-  {
-    target: null, // no highlight — full screen welcome
-    tab: 'home',
-    title: '🌊 Welcome to Equilibrium',
-    body: 'A quick tour of everything that\'s new. We\'ll highlight each feature as we go.',
-  },
-  {
-    target: '[data-tab="symptoms"]',
-    tab: 'home',
-    title: '⚡ Log an Attack',
-    body: 'Tap <strong>Symptoms</strong> to log a vertigo attack with intensity, duration, and what you were feeling. Your doctor will love this data.',
-  },
-  {
-    target: '[data-action="scan-plate"]',
-    tab: 'diet',
-    title: '✨ AI Powered Camera',
-    body: 'Brand new! Take a photo of any meal and our AI instantly identifies every ingredient and calculates the sodium. No more guessing.',
-  },
-  {
-    target: '[data-action="food-search"]',
-    tab: 'diet',
-    title: '🔍 Food Search',
-    body: 'Search over <strong>1 million foods</strong> from the USDA database. Scan a barcode or type any food name to log sodium instantly.',
-  },
-  {
-    target: '[data-tab="wellness"]',
-    tab: 'home',
-    title: '🌿 Wellness Check-In',
-    body: 'Log your <strong>stress, mood, sleep, and caffeine</strong> every day. Over time, Equilibrium finds patterns between your habits and your attacks.',
-  },
-  {
-    target: '[data-action="medications"]',
-    tab: 'home',
-    title: '💊 Medications',
-    body: 'Add your medications and log daily doses. Enable reminders and you\'ll get a <strong>push notification</strong> even when the app is closed.',
-  },
-  {
-    target: '[data-action="report"]',
-    tab: 'home',
-    title: '📋 Doctor Report',
-    body: 'Generate a <strong>30-day summary</strong> of your attacks, sodium, sleep, and stress — ready to share at your next appointment.',
-  },
-  {
-    target: '[data-tab="more"]',
-    tab: 'home',
-    title: '☰ More Features',
-    body: 'Find <strong>Trigger Insights, Emergency Card, Year in Review</strong>, and settings. You\'re all set — welcome to the community! 💙',
-  },
+const TUTORIAL_STEPS = [
+  { icon: '🌊', title: 'Welcome to Equilibrium', body: 'Your Ménière\'s companion for tracking symptoms, diet, and wellness. Let\'s take a quick tour.' },
+  { icon: '⚡', title: 'Log an Attack', body: 'Tap <strong>Symptoms</strong> to log a vertigo attack with intensity, duration, and what you were feeling. Your doctor will love this data.' },
+  { icon: '✨', title: 'AI Powered Camera', body: 'Take a photo of any meal and our AI instantly identifies every ingredient and calculates sodium. No more guessing.' },
+  { icon: '🥗', title: 'Track Your Diet', body: 'Search over <strong>1 million foods</strong> from the USDA database, or scan a barcode to log sodium instantly.' },
+  { icon: '🌿', title: 'Wellness Check-In', body: 'Log your <strong>stress, mood, sleep, and caffeine</strong> every day. Over time, Equilibrium finds patterns between your habits and attacks.' },
+  { icon: '💊', title: 'Medications', body: 'Add your medications and get <strong>push notifications</strong> even when the app is closed.' },
+  { icon: '📋', title: 'Doctor Report', body: 'Generate a <strong>30-day summary</strong> of your attacks, sodium, sleep, and stress — ready to share at your next appointment.' },
+  { icon: '🎉', title: 'You\'re all set!', body: 'Welcome to the Equilibrium community. You\'re not alone in this journey. 💙' },
 ];
 
-const Spotlight = {
+const Tutorial = {
   current: 0,
-  _prevTab: 'home',
-
   show() {
     this.current = 0;
-    qs('#spotlight-overlay').classList.remove('hidden');
+    qs('#tutorial-overlay').classList.remove('hidden');
     this._render();
   },
-
   hide() {
-    qs('#spotlight-overlay').classList.add('hidden');
-    this._clearHighlight();
-    // restore tab
-    switchTab(S.tab);
+    qs('#tutorial-overlay').classList.add('hidden');
   },
-
   markSeen() {
-    localStorage.setItem('eq_spotlight_ver', String(SPOTLIGHT_VERSION));
+    localStorage.setItem(K.tutorialSeen, String(TUTORIAL_VERSION));
     this.hide();
   },
-
-  _clearHighlight() {
-    const W = window.innerWidth, H = window.innerHeight;
-    // Collapse all panels to cover full screen (no hole)
-    const s = (id, t, l, w, h) => {
-      const el = qs(id);
-      if (el) Object.assign(el.style, { top: t+'px', left: l+'px', width: w+'px', height: h+'px' });
-    };
-    s('#spot-top',    0, 0, W, H);
-    s('#spot-bottom', H, 0, W, 0);
-    s('#spot-left',   0, 0, 0, H);
-    s('#spot-right',  0, W, 0, H);
-    const ring = qs('#spot-ring');
-    if (ring) ring.style.opacity = '0';
-  },
-
-  _highlightElement(el) {
-    const W = window.innerWidth, H = window.innerHeight;
-    const pad = 10;
-
-    if (!el) {
-      // No target — full dark screen
-      const s = (id, t, l, w, h) => {
-        const e = qs(id);
-        if (e) Object.assign(e.style, { top: t+'px', left: l+'px', width: w+'px', height: h+'px' });
-      };
-      s('#spot-top',    0, 0, W, H);
-      s('#spot-bottom', H, 0, W, 0);
-      s('#spot-left',   0, 0, 0, H);
-      s('#spot-right',  0, W, 0, H);
-      const ring = qs('#spot-ring');
-      if (ring) ring.style.opacity = '0';
-      // Card in center
-      const card = qs('#spotlight-card');
-      if (card) { card.style.top = '50%'; card.style.bottom = 'auto'; card.style.transform = 'translateY(-50%)'; }
-      return;
-    }
-
-    const r = el.getBoundingClientRect();
-    const x = Math.max(0, r.left - pad);
-    const y = Math.max(0, r.top - pad);
-    const x2 = Math.min(W, r.right + pad);
-    const y2 = Math.min(H, r.bottom + pad);
-    const w = x2 - x;
-    const h = y2 - y;
-
-    // 4 dark panels around the hole
-    const set = (id, t, l, pw, ph) => {
-      const e = qs(id);
-      if (e) Object.assign(e.style, { top: t+'px', left: l+'px', width: pw+'px', height: ph+'px' });
-    };
-    set('#spot-top',    0,  0,  W,   y);
-    set('#spot-bottom', y2, 0,  W,   H - y2);
-    set('#spot-left',   y,  0,  x,   h);
-    set('#spot-right',  y,  x2, W - x2, h);
-
-    // Green ring
-    const ring = qs('#spot-ring');
-    if (ring) {
-      Object.assign(ring.style, {
-        top: y+'px', left: x+'px', width: w+'px', height: h+'px', opacity: '1'
-      });
-    }
-
-    // Position card above or below — clamped to viewport
-    const card = qs('#spotlight-card');
-    if (card) {
-      card.style.transform = '';
-      const cardH = card.offsetHeight || 200;
-      const margin = 12;
-      if (y > H * 0.5) {
-        // element in bottom half — card above
-        const top = Math.max(8, y - cardH - margin);
-        card.style.top = `${top}px`;
-        card.style.bottom = 'auto';
-      } else {
-        // element in top half — card below
-        const top = Math.min(H - cardH - 8, y2 + margin);
-        card.style.top = `${top}px`;
-        card.style.bottom = 'auto';
-      }
-    }
-  },
-
-  async _render() {
-    const step = SPOTLIGHT_STEPS[this.current];
-    const total = SPOTLIGHT_STEPS.length;
-    const isLast = this.current === total - 1;
-
-    // Switch to the right tab first
-    if (step.tab && step.tab !== S.tab) {
-      switchTab(step.tab);
-      await new Promise(r => setTimeout(r, 400));
-    }
-
-    // Scroll page to top so elements are in view
-    qs('#main')?.scrollTo({ top: 0, behavior: 'instant' });
-    await new Promise(r => setTimeout(r, 100));
-
-    // Find target element and scroll into view if needed
-    const el = step.target ? qs(step.target) : null;
-    if (el) {
-      el.scrollIntoView({ block: 'center', behavior: 'instant' });
-      await new Promise(r => setTimeout(r, 120));
-    }
-
-    this._highlightElement(el);
-
-    // Content
-    qs('#spotlight-content').innerHTML = `
-      <div style="font-size:17px;font-weight:800;color:var(--text);margin-bottom:8px">${step.title}</div>
-      <div style="font-size:14px;line-height:1.6;color:var(--text-m)">${step.body}</div>
+  _render() {
+    const step = TUTORIAL_STEPS[this.current];
+    const isLast = this.current === TUTORIAL_STEPS.length - 1;
+    qs('#tut-step').innerHTML = `
+      <div class="tut-icon">${step.icon}</div>
+      <div class="tut-title">${step.title}</div>
+      <div class="tut-body">${step.body}</div>
     `;
-
-    // Dots
-    qs('#spotlight-dots').innerHTML = SPOTLIGHT_STEPS.map((_, i) =>
-      `<div class="spotlight-dot${i === this.current ? ' active' : ''}"></div>`
+    qs('#tut-dots').innerHTML = TUTORIAL_STEPS.map((_, i) =>
+      `<div class="tut-dot${i === this.current ? ' active' : ''}"></div>`
     ).join('');
-
-    // Buttons
-    qs('#btn-spotlight-prev').style.visibility = this.current > 0 ? 'visible' : 'hidden';
-    qs('#btn-spotlight-next').textContent = isLast ? "Let\'s go! 🌊" : 'Next →';
+    qs('#btn-tut-prev').style.visibility = this.current > 0 ? 'visible' : 'hidden';
+    qs('#btn-tut-next').textContent = isLast ? "Let\'s go! 🌊" : 'Next →';
   },
 };
 
-function initSpotlight() {
-  qs('#btn-spotlight-skip').addEventListener('click', () => Spotlight.markSeen());
-  qs('#btn-spotlight-next').addEventListener('click', () => {
-    if (Spotlight.current < SPOTLIGHT_STEPS.length - 1) {
-      Spotlight.current++;
-      Spotlight._render();
+function initTutorial() {
+  qs('#btn-tut-skip')?.addEventListener('click', () => Tutorial.markSeen());
+  qs('#btn-tut-next')?.addEventListener('click', () => {
+    if (Tutorial.current < TUTORIAL_STEPS.length - 1) {
+      Tutorial.current++;
+      Tutorial._render();
     } else {
-      Spotlight.markSeen();
+      Tutorial.markSeen();
     }
   });
-  qs('#btn-spotlight-prev').addEventListener('click', () => {
-    if (Spotlight.current > 0) { Spotlight.current--; Spotlight._render(); }
+  qs('#btn-tut-prev')?.addEventListener('click', () => {
+    if (Tutorial.current > 0) { Tutorial.current--; Tutorial._render(); }
   });
 }
 
@@ -3976,8 +3814,8 @@ function init() {
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 
-  // Wire tutorial buttons
-  initSpotlight();
+  // Wire tutorial
+  initTutorial();
 
   // Wire weekly summary close button
   qs('#btn-close-weekly')?.addEventListener('click', () => {
@@ -4010,9 +3848,6 @@ function init() {
     }, 300);
   }
 
-  // Old tutorial — mark as seen so it never auto-shows (use spotlight instead)
-  localStorage.setItem(K.tutorialSeen, String(TUTORIAL_VERSION));
-
   // Show weekly summary on Mondays (once per week)
   const todayD = new Date();
   if (todayD.getDay() === 1) {
@@ -4032,10 +3867,10 @@ function init() {
   }
   initYearReview();
 
-  // Show spotlight tour for users who haven't seen it yet
-  const seenSpotlight = parseInt(localStorage.getItem('eq_spotlight_ver') || '0');
-  if (seenSpotlight < SPOTLIGHT_VERSION) {
-    setTimeout(() => Spotlight.show(), 600);
+  // Show welcome tutorial for first-time users
+  const seenTutorial = parseInt(localStorage.getItem(K.tutorialSeen) || '0');
+  if (seenTutorial < TUTORIAL_VERSION) {
+    setTimeout(() => Tutorial.show(), 700);
   }
 
   // Check notifications
@@ -4083,7 +3918,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '29';
+const APP_VERSION = '35';
 async function checkForAppUpdate() {
   try {
     const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });

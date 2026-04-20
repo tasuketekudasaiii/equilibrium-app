@@ -577,56 +577,6 @@ input[type="range"]::-webkit-slider-thumb {
 .food-qty-num { min-width: 22px; text-align: center; font-size: 14px; font-weight: 700; color: var(--text); }
 
 /* --- Tutorial overlay --- */
-/* ── Spotlight Tutorial ── */
-.spotlight-overlay {
-  position: fixed; inset: 0; z-index: 500;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-.spotlight-overlay.hidden { opacity: 0; }
-.spotlight-overlay:not(.hidden) { opacity: 1; pointer-events: all; }
-
-/* 4 dark panels that surround the highlighted element */
-.spot-panel {
-  position: fixed;
-  background: rgba(0,0,0,0.78);
-  z-index: 501;
-  transition: all 0.25s ease;
-}
-
-/* Green ring around the highlighted element */
-#spot-ring {
-  position: fixed;
-  border: 2.5px solid #5B9B8A;
-  border-radius: 12px;
-  z-index: 502;
-  pointer-events: none;
-  transition: all 0.25s ease;
-  box-shadow: 0 0 0 4px rgba(91,155,138,0.2);
-}
-
-/* Tooltip card */
-.spotlight-card {
-  position: fixed;
-  left: 16px; right: 16px;
-  background: var(--surface);
-  border-radius: var(--r-xl);
-  padding: var(--sp-lg);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-  pointer-events: all;
-  z-index: 503;
-  transition: top 0.25s ease, bottom 0.25s ease;
-}
-.spotlight-skip {
-  position: absolute; top: var(--sp-md); right: var(--sp-md);
-  font-size: 13px; color: var(--text-m); padding: 4px 10px;
-  border-radius: var(--r-f); border: 1px solid var(--border);
-  background: var(--surface2);
-}
-.spotlight-dots { display: flex; gap: 6px; margin-bottom: var(--sp-sm); }
-.spotlight-dot { width: 6px; height: 6px; border-radius: var(--r-f); background: var(--border); transition: all 0.2s; }
-.spotlight-dot.active { width: 18px; background: var(--p); }
-.spotlight-nav { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-sm); margin-top: var(--sp-md); }
 
 .tutorial-overlay {
   position: fixed; inset: 0; z-index: 500;
