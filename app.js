@@ -3629,15 +3629,21 @@ const Spotlight = {
       });
     }
 
-    // Position card above or below
+    // Position card above or below — clamped to viewport
     const card = qs('#spotlight-card');
     if (card) {
       card.style.transform = '';
+      const cardH = card.offsetHeight || 200;
+      const margin = 12;
       if (y > H * 0.5) {
-        card.style.bottom = `${H - y + 12}px`;
-        card.style.top = 'auto';
+        // element in bottom half — card above
+        const top = Math.max(8, y - cardH - margin);
+        card.style.top = `${top}px`;
+        card.style.bottom = 'auto';
       } else {
-        card.style.top = `${y2 + 12}px`;
+        // element in top half — card below
+        const top = Math.min(H - cardH - 8, y2 + margin);
+        card.style.top = `${top}px`;
         card.style.bottom = 'auto';
       }
     }
@@ -3651,11 +3657,20 @@ const Spotlight = {
     // Switch to the right tab first
     if (step.tab && step.tab !== S.tab) {
       switchTab(step.tab);
-      await new Promise(r => setTimeout(r, 350)); // wait for render
+      await new Promise(r => setTimeout(r, 400));
     }
 
-    // Find target element
+    // Scroll page to top so elements are in view
+    qs('#main')?.scrollTo({ top: 0, behavior: 'instant' });
+    await new Promise(r => setTimeout(r, 100));
+
+    // Find target element and scroll into view if needed
     const el = step.target ? qs(step.target) : null;
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'instant' });
+      await new Promise(r => setTimeout(r, 120));
+    }
+
     this._highlightElement(el);
 
     // Content
@@ -4068,7 +4083,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '28';
+const APP_VERSION = '29';
 async function checkForAppUpdate() {
   try {
     const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
