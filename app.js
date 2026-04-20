@@ -1661,7 +1661,12 @@ function renderSettingsPanel() {
     </div>
 
     <div class="card">
-      <div class="card-title" style="margin-bottom:var(--sp-md)">🔔 Reminders</div>
+      <div class="card-title" style="margin-bottom:4px">🔔 Reminders</div>
+      <div style="font-size:12px;color:var(--text-m);margin-bottom:var(--sp-md)">
+        ${typeof Notification !== 'undefined' && Notification.permission === 'granted'
+          ? '✅ Push notifications active — works even when app is closed'
+          : '💡 Enable to get reminders even when the app is closed'}
+      </div>
       <div class="toggle-row" style="margin-bottom:var(--sp-sm)">
         <span class="toggle-label">Enable notifications</span>
         <label class="toggle">
@@ -1693,18 +1698,29 @@ function renderSettingsPanel() {
     s.sodiumGoal = +qs('#set-sodium').value || 1500;
     s.dark = qs('#set-dark').checked;
     const notifWanted = qs('#set-notif').checked;
-    if (notifWanted && !s.notifEnabled) {
-      if ('Notification' in window) {
-        const perm = await Notification.requestPermission();
-        s.notifEnabled = perm === 'granted';
-        if (perm !== 'granted') showToast('Notification permission denied');
-      }
-    } else {
-      s.notifEnabled = notifWanted;
-    }
     s.notifMorning = qs('#set-notif-morning')?.value || '08:00';
     s.notifMed     = qs('#set-notif-med')?.value    || '09:00';
     s.notifEvening = qs('#set-notif-evening')?.value || '20:00';
+    s.dailyReminder     = notifWanted;
+    s.dailyReminderTime = s.notifMorning;
+
+    if (notifWanted && !s.notifEnabled) {
+      const granted = await requestPushPermission();
+      s.notifEnabled = granted;
+      if (!granted) {
+        showToast('Notification permission denied');
+      } else {
+        showToast('Notifications enabled ✓ — you\'ll get reminders even when the app is closed');
+        await syncPushSubscription(await navigator.serviceWorker.ready.then(r => r.pushManager.getSubscription()));
+      }
+    } else if (notifWanted && s.notifEnabled) {
+      // Re-sync schedule in case times changed
+      const sub = await navigator.serviceWorker.ready.then(r => r.pushManager.getSubscription());
+      if (sub) await syncPushSubscription(sub);
+      s.notifEnabled = true;
+    } else {
+      s.notifEnabled = false;
+    }
     DB.saveSettings(s);
     applyTheme(s.dark);
     showToast('Settings saved ✓');
@@ -3909,7 +3925,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '25';
+const APP_VERSION = '26';
 async function checkForAppUpdate() {
   try {
     const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
