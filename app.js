@@ -3906,3 +3906,101 @@ function scheduleMidnightRollover() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ── App update checker ────────────────────────────────────────────────
+// Detects new deployments and prompts the user to refresh on iOS PWA
+const APP_VERSION = '25';
+async function checkForAppUpdate() {
+  try {
+    const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
+    const text = await resp.text();
+    const match = text.match(/app\.js\?v=(\d+)/);
+    if (match && match[1] !== APP_VERSION) {
+      showUpdateBanner();
+    }
+  } catch {}
+}
+
+function showUpdateBanner() {
+  if (qs('#update-banner')) return; // already showing
+  const banner = document.createElement('div');
+  banner.id = 'update-banner';
+  banner.style.cssText = `
+    position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:var(--p);color:white;
+    padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+    font-size:14px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,0.2);
+  `;
+  banner.innerHTML = `
+    <span>🆕 Update available!</span>
+    <button style="background:white;color:var(--p);border:none;border-radius:20px;padding:6px 16px;font-weight:700;font-size:13px;cursor:pointer" onclick="window.location.reload()">Refresh</button>
+  `;
+  document.body.prepend(banner);
+}
+
+// Check on load and every 5 minutes when app is visible
+setTimeout(checkForAppUpdate, 3000);
+setInterval(() => { if (!document.hidden) checkForAppUpdate(); }, 5 * 60 * 1000);
+
+// ── Web Push ──────────────────────────────────────────────────────────
+const PUSH_PUBLIC_KEY = 'BHGpi-2eS-81_wAY6yhc0N6mMuDKQsh8uC1FyEGVNNE1cCdlNk0hS-fhqB9Z_6F-UJscRI1vg0U55OqXKYCW2VE';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return existing; // already subscribed
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY),
+    });
+
+    // Send subscription + med schedule to Cloudflare Worker
+    await syncPushSubscription(sub);
+    return sub;
+  } catch (e) {
+    console.warn('[Push] subscription failed:', e);
+  }
+}
+
+async function syncPushSubscription(sub) {
+  try {
+    const meds = DB.g(K.medications) || [];
+    const settings = DB.settings();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    await fetch(`${VISION_WORKER}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, medications: meds, settings, tz }),
+    });
+  } catch (e) {
+    console.warn('[Push] sync failed:', e);
+  }
+}
+
+async function requestPushPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') {
+    await subscribeToPush();
+    return true;
+  }
+  if (Notification.permission === 'denied') return false;
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    await subscribeToPush();
+    return true;
+  }
+  return false;
+}
+
+window.requestPushPermission = requestPushPermission;
+window.syncPushSubscription  = syncPushSubscription;

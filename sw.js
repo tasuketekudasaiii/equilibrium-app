@@ -1,4 +1,4 @@
-const CACHE = 'equilibrium-v10';
+const CACHE = 'equilibrium-v11';
 const STATIC = [
   './index.html',
   './app.css',
@@ -16,31 +16,45 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
       .then(c => c.addAll(STATIC))
-      .then(() => self.skipWaiting()) // activate immediately
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate: remove old caches, claim all clients right away
+// Activate: remove old caches, claim all clients
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
         keys.filter(k => k !== CACHE).map(k => caches.delete(k))
       ))
-      .then(() => self.clients.claim()) // take control without reload
+      .then(() => self.clients.claim())
   );
 });
 
-// Notification click: focus or open the app
+// ── Push: show notification from server ──────────────────────────────
+self.addEventListener('push', e => {
+  let data = { title: 'Equilibrium', body: 'Time to check in!', url: './' };
+  try { data = { ...data, ...e.data.json() }; } catch {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      data: { url: data.url },
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// ── Notification click ───────────────────────────────────────────────
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const actionUrl = e.notification.data?.url || './';
   e.waitUntil(
-    clients.matchAll({type:'window', includeUncontrolled:true}).then(list => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) {
         if (c.url && 'focus' in c) {
           c.focus();
-          // Navigate to the action URL
           if (actionUrl !== './' && 'navigate' in c) c.navigate(actionUrl);
           return;
         }
@@ -50,27 +64,26 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
-// Fetch: network-first for GET requests only.
-// POST requests (Firebase/Firestore) are never intercepted.
-self.addEventListener('fetch', e => {
-  // Never intercept non-GET requests — Cache API doesn't support POST
-  if (e.request.method !== 'GET') return;
+// ── Message: trigger update check from app ───────────────────────────
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
 
-  // Never intercept cross-origin requests — let browser handle Firebase/CDN natively
+// ── Fetch: network-first for same-origin GET only ────────────────────
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
     fetch(e.request)
       .then(networkRes => {
-        // Got a fresh response — update the cache in the background
         const clone = networkRes.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
         return networkRes;
       })
-      .catch(() => {
-        // Offline — serve from cache
-        return caches.match(e.request)
-          .then(cached => cached || caches.match('./index.html'));
-      })
+      .catch(() =>
+        caches.match(e.request)
+          .then(cached => cached || caches.match('./index.html'))
+      )
   );
 });
