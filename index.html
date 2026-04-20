@@ -214,6 +214,20 @@
     </div>
   </div>
 
+  <!-- ── Spotlight Tutorial ──────────────────── -->
+  <div id="spotlight-overlay" class="spotlight-overlay hidden">
+    <svg class="spotlight-svg" id="spotlight-svg"></svg>
+    <div class="spotlight-card" id="spotlight-card">
+      <button class="spotlight-skip" id="btn-spotlight-skip">Skip</button>
+      <div class="spotlight-dots" id="spotlight-dots"></div>
+      <div id="spotlight-content"></div>
+      <div class="spotlight-nav">
+        <button class="btn btn-ghost" id="btn-spotlight-prev">← Back</button>
+        <button class="btn btn-primary" id="btn-spotlight-next">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Tutorial overlay ─────────────────────── -->
   <div id="tutorial-overlay" class="tutorial-overlay hidden">
     <div class="tutorial-modal">
@@ -276,7 +290,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <!-- App logic -->
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 <!-- Firebase sync (after app.js so it can call renderHome etc) -->
 <script src="firebase.js?v=2"></script>
 </body>

@@ -1363,7 +1363,8 @@ function renderAboutPanel() {
     </div>
 
     <div style="text-align:center;margin-top:var(--sp-lg);padding-bottom:var(--sp-md)">
-      <button class="btn btn-outline" id="btn-view-tutorial" style="margin-bottom:var(--sp-md)">📖 View App Tutorial</button>
+      <button class="btn btn-outline" id="btn-view-tutorial" style="margin-bottom:var(--sp-sm)">📖 View App Tutorial</button>
+      <button class="btn btn-primary btn-full" id="btn-view-spotlight" style="margin-bottom:var(--sp-md)">✨ Take the Feature Tour</button>
       <p style="font-size:11px;color:var(--text-m);line-height:1.7">
         Made with care for the Ménière's community 🌊<br>
         No ads · No tracking · Free forever
@@ -1386,6 +1387,10 @@ function renderAboutPanel() {
   qs('#btn-view-tutorial').addEventListener('click', () => {
     closePanel();
     Tutorial.show();
+  });
+  qs('#btn-view-spotlight').addEventListener('click', () => {
+    closePanel();
+    Spotlight.show();
   });
 }
 
@@ -1674,18 +1679,46 @@ function renderSettingsPanel() {
           <span class="toggle-track"></span>
         </label>
       </div>
-      <div id="notif-times" style="display:${s.notifEnabled?'block':'none'}">
-        <div class="form-group" style="margin-top:var(--sp-sm)">
-          <label class="form-label">Morning check-in</label>
-          <input type="time" class="form-input" id="set-notif-morning" value="${s.notifMorning||'08:00'}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Medication reminder</label>
-          <input type="time" class="form-input" id="set-notif-med" value="${s.notifMed||'09:00'}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Evening log</label>
-          <input type="time" class="form-input" id="set-notif-evening" value="${s.notifEvening||'20:00'}">
+      <div id="notif-times" style="display:${s.notifEnabled?'block':'none'};margin-top:var(--sp-sm)">
+
+        <div style="border-top:1px solid var(--border);padding-top:var(--sp-sm)">
+
+          <!-- Morning -->
+          <div class="toggle-row" style="margin-bottom:6px">
+            <span class="toggle-label">🌅 Morning check-in</span>
+            <label class="toggle">
+              <input type="checkbox" id="set-notif-morning-on" ${s.notifMorningOn!==false?'checked':''}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div id="notif-morning-time" style="display:${s.notifMorningOn!==false?'block':'none'};margin-bottom:var(--sp-md)">
+            <input type="time" class="form-input" id="set-notif-morning" value="${s.notifMorning||'08:00'}">
+          </div>
+
+          <!-- Medications -->
+          <div class="toggle-row" style="margin-bottom:6px">
+            <span class="toggle-label">💊 Medication reminder</span>
+            <label class="toggle">
+              <input type="checkbox" id="set-notif-med-on" ${s.notifMedOn!==false?'checked':''}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div id="notif-med-time" style="display:${s.notifMedOn!==false?'block':'none'};margin-bottom:var(--sp-md)">
+            <input type="time" class="form-input" id="set-notif-med" value="${s.notifMed||'09:00'}">
+          </div>
+
+          <!-- Evening -->
+          <div class="toggle-row" style="margin-bottom:6px">
+            <span class="toggle-label">🌙 Evening log</span>
+            <label class="toggle">
+              <input type="checkbox" id="set-notif-evening-on" ${s.notifEveningOn!==false?'checked':''}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div id="notif-evening-time" style="display:${s.notifEveningOn!==false?'block':'none'}">
+            <input type="time" class="form-input" id="set-notif-evening" value="${s.notifEvening||'20:00'}">
+          </div>
+
         </div>
       </div>
     </div>
@@ -1698,9 +1731,12 @@ function renderSettingsPanel() {
     s.sodiumGoal = +qs('#set-sodium').value || 1500;
     s.dark = qs('#set-dark').checked;
     const notifWanted = qs('#set-notif').checked;
-    s.notifMorning = qs('#set-notif-morning')?.value || '08:00';
-    s.notifMed     = qs('#set-notif-med')?.value    || '09:00';
-    s.notifEvening = qs('#set-notif-evening')?.value || '20:00';
+    s.notifMorningOn = qs('#set-notif-morning-on')?.checked ?? true;
+    s.notifMedOn     = qs('#set-notif-med-on')?.checked     ?? true;
+    s.notifEveningOn = qs('#set-notif-evening-on')?.checked ?? true;
+    s.notifMorning   = qs('#set-notif-morning')?.value || '08:00';
+    s.notifMed       = qs('#set-notif-med')?.value    || '09:00';
+    s.notifEvening   = qs('#set-notif-evening')?.value || '20:00';
     s.dailyReminder     = notifWanted;
     s.dailyReminderTime = s.notifMorning;
 
@@ -1729,6 +1765,15 @@ function renderSettingsPanel() {
   qs('#set-dark').addEventListener('change', function() { applyTheme(this.checked); });
   qs('#set-notif').addEventListener('change', function() {
     qs('#notif-times').style.display = this.checked ? 'block' : 'none';
+  });
+  qs('#set-notif-morning-on').addEventListener('change', function() {
+    qs('#notif-morning-time').style.display = this.checked ? 'block' : 'none';
+  });
+  qs('#set-notif-med-on').addEventListener('change', function() {
+    qs('#notif-med-time').style.display = this.checked ? 'block' : 'none';
+  });
+  qs('#set-notif-evening-on').addEventListener('change', function() {
+    qs('#notif-evening-time').style.display = this.checked ? 'block' : 'none';
   });
 }
 
@@ -3550,6 +3595,180 @@ function initTutorial() {
   });
 }
 
+// ── SPOTLIGHT TUTORIAL ───────────────────────────────────────────────
+const SPOTLIGHT_VERSION = 1;
+
+const SPOTLIGHT_STEPS = [
+  {
+    target: null, // no highlight — full screen welcome
+    tab: 'home',
+    title: '🌊 Welcome to Equilibrium',
+    body: 'A quick tour of everything that\'s new. We\'ll highlight each feature as we go.',
+  },
+  {
+    target: '[data-tab="symptoms"]',
+    tab: 'home',
+    title: '⚡ Log an Attack',
+    body: 'Tap <strong>Symptoms</strong> to log a vertigo attack with intensity, duration, and what you were feeling. Your doctor will love this data.',
+  },
+  {
+    target: '[data-action="scan-plate"]',
+    tab: 'diet',
+    title: '✨ AI Powered Camera',
+    body: 'Brand new! Take a photo of any meal and our AI instantly identifies every ingredient and calculates the sodium. No more guessing.',
+  },
+  {
+    target: '[data-action="food-search"]',
+    tab: 'diet',
+    title: '🔍 Food Search',
+    body: 'Search over <strong>1 million foods</strong> from the USDA database. Scan a barcode or type any food name to log sodium instantly.',
+  },
+  {
+    target: '[data-tab="wellness"]',
+    tab: 'home',
+    title: '🌿 Wellness Check-In',
+    body: 'Log your <strong>stress, mood, sleep, and caffeine</strong> every day. Over time, Equilibrium finds patterns between your habits and your attacks.',
+  },
+  {
+    target: '[data-action="medications"]',
+    tab: 'home',
+    title: '💊 Medications',
+    body: 'Add your medications and log daily doses. Enable reminders and you\'ll get a <strong>push notification</strong> even when the app is closed.',
+  },
+  {
+    target: '[data-action="report"]',
+    tab: 'home',
+    title: '📋 Doctor Report',
+    body: 'Generate a <strong>30-day summary</strong> of your attacks, sodium, sleep, and stress — ready to share at your next appointment.',
+  },
+  {
+    target: '[data-tab="more"]',
+    tab: 'home',
+    title: '☰ More Features',
+    body: 'Find <strong>Trigger Insights, Emergency Card, Year in Review</strong>, and settings. You\'re all set — welcome to the community! 💙',
+  },
+];
+
+const Spotlight = {
+  current: 0,
+  _prevTab: 'home',
+
+  show() {
+    this.current = 0;
+    qs('#spotlight-overlay').classList.remove('hidden');
+    this._render();
+  },
+
+  hide() {
+    qs('#spotlight-overlay').classList.add('hidden');
+    this._clearHighlight();
+    // restore tab
+    switchTab(S.tab);
+  },
+
+  markSeen() {
+    localStorage.setItem('eq_spotlight_ver', String(SPOTLIGHT_VERSION));
+    this.hide();
+  },
+
+  _clearHighlight() {
+    const svg = qs('#spotlight-svg');
+    if (svg) svg.innerHTML = '';
+  },
+
+  _highlightElement(el) {
+    const svg = qs('#spotlight-svg');
+    if (!svg) return;
+
+    if (!el) {
+      // No target — just dark overlay, no hole
+      svg.innerHTML = `<rect width="100%" height="100%" fill="rgba(0,0,0,0.75)"/>`;
+      return;
+    }
+
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    const x = r.left - pad;
+    const y = r.top - pad;
+    const w = r.width + pad * 2;
+    const h = r.height + pad * 2;
+    const rx = 12;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    // SVG with cutout hole using evenodd fill rule
+    svg.innerHTML = `
+      <defs>
+        <mask id="spotlight-mask">
+          <rect width="${W}" height="${H}" fill="white"/>
+          <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="black"/>
+        </mask>
+      </defs>
+      <rect width="${W}" height="${H}" fill="rgba(0,0,0,0.78)" mask="url(#spotlight-mask)"/>
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="none" stroke="#5B9B8A" stroke-width="2.5"/>
+    `;
+
+    // Position tooltip card above or below the element
+    const card = qs('#spotlight-card');
+    const cardH = 220;
+    if (y > H / 2) {
+      // element is in bottom half — card goes above
+      card.style.bottom = `${H - y + 16}px`;
+      card.style.top = 'auto';
+    } else {
+      // element is in top half — card goes below
+      card.style.top = `${y + h + 16}px`;
+      card.style.bottom = 'auto';
+    }
+  },
+
+  async _render() {
+    const step = SPOTLIGHT_STEPS[this.current];
+    const total = SPOTLIGHT_STEPS.length;
+    const isLast = this.current === total - 1;
+
+    // Switch to the right tab first
+    if (step.tab && step.tab !== S.tab) {
+      switchTab(step.tab);
+      await new Promise(r => setTimeout(r, 350)); // wait for render
+    }
+
+    // Find target element
+    const el = step.target ? qs(step.target) : null;
+    this._highlightElement(el);
+
+    // Content
+    qs('#spotlight-content').innerHTML = `
+      <div style="font-size:17px;font-weight:800;color:var(--text);margin-bottom:8px">${step.title}</div>
+      <div style="font-size:14px;line-height:1.6;color:var(--text-m)">${step.body}</div>
+    `;
+
+    // Dots
+    qs('#spotlight-dots').innerHTML = SPOTLIGHT_STEPS.map((_, i) =>
+      `<div class="spotlight-dot${i === this.current ? ' active' : ''}"></div>`
+    ).join('');
+
+    // Buttons
+    qs('#btn-spotlight-prev').style.visibility = this.current > 0 ? 'visible' : 'hidden';
+    qs('#btn-spotlight-next').textContent = isLast ? "Let\'s go! 🌊" : 'Next →';
+  },
+};
+
+function initSpotlight() {
+  qs('#btn-spotlight-skip').addEventListener('click', () => Spotlight.markSeen());
+  qs('#btn-spotlight-next').addEventListener('click', () => {
+    if (Spotlight.current < SPOTLIGHT_STEPS.length - 1) {
+      Spotlight.current++;
+      Spotlight._render();
+    } else {
+      Spotlight.markSeen();
+    }
+  });
+  qs('#btn-spotlight-prev').addEventListener('click', () => {
+    if (Spotlight.current > 0) { Spotlight.current--; Spotlight._render(); }
+  });
+}
+
 // ── ANNUAL YEAR-IN-REVIEW ────────────────────────────────────────
 function buildReviewSlides(year) {
   const yearStart = `${year}-01-01`;
@@ -3823,6 +4042,7 @@ function init() {
 
   // Wire tutorial buttons
   initTutorial();
+  initSpotlight();
 
   // Wire weekly summary close button
   qs('#btn-close-weekly')?.addEventListener('click', () => {
@@ -3880,6 +4100,12 @@ function init() {
   }
   initYearReview();
 
+  // Show spotlight tour for users who haven't seen it yet
+  const seenSpotlight = parseInt(localStorage.getItem('eq_spotlight_ver') || '0');
+  if (seenSpotlight < SPOTLIGHT_VERSION) {
+    setTimeout(() => Spotlight.show(), 600);
+  }
+
   // Check notifications
   checkNotifications();
 
@@ -3925,7 +4151,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '26';
+const APP_VERSION = '27';
 async function checkForAppUpdate() {
   try {
     const resp = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
