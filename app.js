@@ -15,9 +15,14 @@ const ALCOHOL_KEYWORDS  = ['beer','wine','vodka','whiskey','whisky','rum','gin',
 
 function detectCaffeineAlcohol(name) {
   const n = name.toLowerCase();
+  // Use word boundaries so "ale" doesn't match "kale", "gin" doesn't match
+  // "ginger", "tea" doesn't match "steak", etc.
+  const hasWord = k => new RegExp(
+    '\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '\\b'
+  ).test(n);
   return {
-    hasCaffeine: CAFFEINE_KEYWORDS.some(k => n.includes(k)),
-    hasAlcohol:  ALCOHOL_KEYWORDS.some(k => n.includes(k)),
+    hasCaffeine: CAFFEINE_KEYWORDS.some(k => hasWord(k)),
+    hasAlcohol:  ALCOHOL_KEYWORDS.some(k => hasWord(k)),
   };
 }
 
@@ -1465,7 +1470,7 @@ function renderMore() {
     </div>
 
     <p style="text-align:center;font-size:11px;color:var(--text-m);margin-top:var(--sp-lg);line-height:1.6">
-      Equilibrium v1.4 · Your data, your control
+      Equilibrium v2.0 · Your data, your control
     </p>
   `;
 }
@@ -2956,6 +2961,16 @@ function autoTrackCaffeineAlcohol(foodName, date) {
   if (window.FireSync?.isSignedIn()) FireSync.push('eq_caff', DB.g(K.caff));
 }
 
+function autoUntrackCaffeineAlcohol(foodName, date) {
+  const { hasCaffeine, hasAlcohol } = detectCaffeineAlcohol(foodName);
+  if (!hasCaffeine && !hasAlcohol) return;
+  const ca = DB.caffFor(date);
+  if (hasCaffeine) ca.c = Math.max(0, (ca.c || 0) - 1);
+  if (hasAlcohol)  ca.a = Math.max(0, (ca.a || 0) - 1);
+  DB.saveCaff(date, ca);
+  if (window.FireSync?.isSignedIn()) FireSync.push('eq_caff', DB.g(K.caff));
+}
+
 // ── CALENDAR PICKER ──────────────────────────────────────────────
 const Cal = {
   year: new Date().getFullYear(),
@@ -3362,8 +3377,13 @@ document.addEventListener('click', e => {
       }
       case 'del-sodium': {
         const id = e.target.closest('[data-id]').dataset.id;
-        DB.delSodiumItem(today(), id);
+        const date = S.viewDate || today();
+        // Look up item name before deleting so we can adjust caffeine/alcohol counters
+        const itemToDelete = (DB.sodiumFor(date).items || []).find(i => i.id === id);
+        DB.delSodiumItem(date, id);
+        if (itemToDelete?.n) autoUntrackCaffeineAlcohol(itemToDelete.n, date);
         if (S.tab==='diet') renderDiet(); else renderHome();
+        if (window.FireSync?.isSignedIn()) FireSync.push('eq_sodium', DB.sodiumLog());
         showToast('Food entry removed');
         break;
       }
@@ -3971,7 +3991,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '39';
+const APP_VERSION = '40';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
