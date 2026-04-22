@@ -1,0 +1,7 @@
+name = "equilibrium-vision"
+main = "equilibrium-worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "04a2c28a18cc4919b35d7303ff18ba7c"
