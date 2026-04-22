@@ -2947,13 +2947,26 @@ async function handlePlatePhoto(file) {
     const base64 = await compressImage(file, 800, 0.7);
     const mediaType = file.type || 'image/jpeg';
 
-    // Get a fresh Firebase ID token — verified server-side by the Worker,
-    // so auth cannot be bypassed by calling the Worker URL directly.
-    const idToken = await window.FireSync?.getIdToken?.();
+    // Get a fresh Firebase ID token — verified server-side by the Worker.
+    // We go directly to firebase.auth().currentUser (the live SDK reference)
+    // rather than through the FireSync wrapper, which can hold a stale user
+    // snapshot. The `firebase` global is available because the compat SDK
+    // scripts load before app.js in index.html.
+    let idToken = null;
+    try {
+      const fbUser = (typeof firebase !== 'undefined' && firebase.apps?.length)
+        ? firebase.auth().currentUser
+        : null;
+      const currentUser = fbUser || window.FireSync?.getUser?.();
+      if (currentUser) {
+        try { idToken = await currentUser.getIdToken(false); }
+        catch { idToken = await currentUser.getIdToken(true); } // force refresh
+      }
+    } catch { /* idToken stays null */ }
+
     if (!idToken) {
-      // Token fetch failed — most likely a brief network issue.
-      // Ask the user to retry before blaming their session.
-      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not verify sign-in</div><div class="empty-text">Check your connection and try again. If the problem persists, sign out and back in.</div></div>`;
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">🔒</div><div class="empty-title">Sign in required</div><div class="empty-text">Please sign in to use the AI Camera</div></div>`;
+      setTimeout(() => { closePanel(); openPanel('panel-account', renderAccountPanel); }, 1200);
       return;
     }
 
@@ -4248,7 +4261,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '52';
+const APP_VERSION = '53';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
