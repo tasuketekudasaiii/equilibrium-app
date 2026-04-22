@@ -3485,7 +3485,16 @@ document.addEventListener('submit', e => {
 
 
 // ── WELCOME TUTORIAL ─────────────────────────────────────────────
-const TUTORIAL_VERSION = 4;
+const TUTORIAL_VERSION = 5;
+
+// Detect platform for install instructions
+const _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const _isAndroid = /android/i.test(navigator.userAgent);
+const _installStep = _isIOS
+  ? { icon: '📲', title: 'Install on iPhone', body: 'For the best experience, add Equilibrium to your home screen:<br><br>1. Tap the <strong>Share</strong> button (□↑) in Safari<br>2. Tap <strong>"Add to Home Screen"</strong><br>3. Tap <strong>Add</strong><br><br>It works like a native app — full screen & offline! 🌊' }
+  : _isAndroid
+  ? { icon: '📲', title: 'Install on Android', body: 'For the best experience, add Equilibrium to your home screen:<br><br>1. Tap the <strong>⋮ menu</strong> in Chrome<br>2. Tap <strong>"Add to Home screen"</strong><br>3. Tap <strong>Add</strong><br><br>It works like a native app — full screen & offline! 🌊' }
+  : null;
 
 const TUTORIAL_STEPS = [
   { icon: '🌊', title: 'Welcome to Equilibrium', body: 'Your Ménière\'s companion for tracking symptoms, diet, and wellness. Let\'s take a quick tour.' },
@@ -3495,6 +3504,7 @@ const TUTORIAL_STEPS = [
   { icon: '🌿', title: 'Wellness Check-In', body: 'Log your <strong>stress, mood, sleep, and caffeine</strong> every day. Over time, Equilibrium finds patterns between your habits and attacks.' },
   { icon: '💊', title: 'Medications', body: 'Add your medications and get <strong>push notifications</strong> even when the app is closed.' },
   { icon: '📋', title: 'Doctor Report', body: 'Generate a <strong>30-day summary</strong> of your attacks, sodium, sleep, and stress — ready to share at your next appointment.' },
+  ...(_installStep ? [_installStep] : []),
   { icon: '🎉', title: 'You\'re all set!', body: 'Welcome to the Equilibrium community. You\'re not alone in this journey. 💙' },
 ];
 
@@ -3923,7 +3933,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '36';
+const APP_VERSION = '37';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
@@ -3933,6 +3943,11 @@ async function checkForAppUpdate() {
     const match = text.match(/app\.js\?v=(\d+)/);
     if (match && match[1] !== APP_VERSION) {
       _updatePending = true;
+      // Tell the service worker to take over immediately
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg?.waiting) reg.waiting.postMessage('SKIP_WAITING');
+      }
       // If no attack is in progress, reload silently right away
       if (!S.attack) {
         window.location.reload();
