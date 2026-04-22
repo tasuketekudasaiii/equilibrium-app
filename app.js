@@ -1441,7 +1441,7 @@ function renderMore() {
       <div class="more-icon" style="background:#EBF5F2">👤</div>
       <div class="more-content">
         <div class="more-title">Account & Backup</div>
-        <div class="more-sub" id="more-account-sub">${window.FireSync?.isSignedIn() ? (window.FireSync.getUser()?.displayName || window.FireSync.getUser()?.email || 'Signed in') : 'Sign in to back up your data'}</div>
+        <div class="more-sub" id="more-account-sub">${window.FireSync?.isSignedIn() ? ((window.FireSync.getUser()?.displayName || window.FireSync.getUser()?.email || 'Signed in') + (isAdmin() ? ' <span style="background:#5B9B8A;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;margin-left:4px">Admin</span>' : '')) : 'Sign in to back up your data'}</div>
       </div>
       <div class="more-arrow">›</div>
     </div>
@@ -1508,8 +1508,14 @@ function renderAccountPanel() {
         <div style="width:64px;height:64px;border-radius:50%;background:var(--p);color:white;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto var(--sp-md)">
           ${(user.displayName || user.email || '?')[0].toUpperCase()}
         </div>
-        <div style="font-size:18px;font-weight:800;margin-bottom:4px">${user.displayName || 'Account'}</div>
-        <div style="font-size:13px;color:var(--text-m);margin-bottom:var(--sp-lg)">${user.email || ''}</div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:4px">
+          ${user.displayName || 'Account'}
+          ${isAdmin() ? '<span style="background:#5B9B8A;color:white;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;vertical-align:middle;margin-left:6px">Admin</span>' : ''}
+        </div>
+        <div style="font-size:13px;color:var(--text-m);margin-bottom:${isAdmin() ? 'var(--sp-sm)' : 'var(--sp-lg)'}">
+          ${user.email || ''}
+        </div>
+        ${isAdmin() ? `<div style="font-size:12px;color:var(--p);font-weight:600;margin-bottom:var(--sp-lg)">✨ Unlimited AI Camera access</div>` : `<div style="font-size:12px;color:var(--text-m);margin-bottom:var(--sp-lg)">AI Camera: <strong>${getAIUsesToday()}/${AI_DAILY_LIMIT}</strong> scans used today</div>`}
         ${user.emailVerified
           ? `<div class="pill pill-success" style="margin-bottom:var(--sp-lg)">☁️ Data syncing to cloud</div>`
           : `<div class="pill" style="background:var(--warning-light);color:#8a6000;margin-bottom:var(--sp-sm)">⚠️ Email not verified</div>
@@ -2666,7 +2672,37 @@ function showScannerFallback() {
 // ── Plate Scanner ────────────────────────────────────────────────────
 const VISION_WORKER = 'https://equilibrium-vision.midorilabs.workers.dev';
 
+// ── Admin & AI camera access control ─────────────────────────────
+const ADMIN_EMAILS = ['georgie729@gmail.com', 'anaisabelmieses@gmail.com'];
+const AI_DAILY_LIMIT = 5;
+
+function isAdmin() {
+  const email = window.FireSync?.getUser()?.email?.toLowerCase().trim();
+  return !!email && ADMIN_EMAILS.includes(email);
+}
+
+function getAIUsesToday() {
+  const key = `eq_ai_uses_${today()}`;
+  return parseInt(localStorage.getItem(key) || '0');
+}
+
+function incrementAIUses() {
+  const key = `eq_ai_uses_${today()}`;
+  localStorage.setItem(key, String(getAIUsesToday() + 1));
+}
+
 function openPlateScanner() {
+  // Must be signed in
+  if (!window.FireSync?.isSignedIn()) {
+    showToast('Sign in to use the AI Camera 📸');
+    setTimeout(() => openPanel('panel-account', renderAccountPanel), 400);
+    return;
+  }
+  // Daily limit for non-admins
+  if (!isAdmin() && getAIUsesToday() >= AI_DAILY_LIMIT) {
+    showToast(`You've reached your ${AI_DAILY_LIMIT} AI scans for today. Come back tomorrow! 🌅`);
+    return;
+  }
   openPanel('panel-plate-scanner', renderPlateScanner);
 }
 
@@ -2716,6 +2752,8 @@ async function handlePlatePhoto(file) {
     });
 
     const data = await resp.json();
+    // Count this scan against the daily limit (admins excluded)
+    if (!isAdmin()) incrementAIUses();
     if (!data.foods || data.foods.length === 0) {
       resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">🤔</div><div class="empty-title">Couldn't identify foods</div><div class="empty-text">Try a clearer photo or better lighting</div></div>`;
       return;
@@ -3933,7 +3971,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '38';
+const APP_VERSION = '39';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
