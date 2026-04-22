@@ -1254,7 +1254,7 @@ function renderStressChart() {
 async function shareApp() {
   const shareData = {
     title: 'Equilibrium — Ménière\'s Companion',
-    text: `I wanted to share this app with you 🌊\n\nEquilibrium is a free app designed for people living with Ménière's disease. It helps you:\n\n• Track vertigo attacks and symptoms\n• Monitor your sodium intake\n• Log medications and set reminders\n• Discover your personal triggers over time\n• Generate reports to share with your doctor\n\nIt's private, free, and works on any phone — no account needed to get started.\n\n👉 myequilibrium.app`,
+    text: `I wanted to share something that's been really helpful 🌊\n\nIt's called Equilibrium, a free app for people living with Ménière's disease. You can track vertigo attacks, monitor your sodium intake, log medications, and over time it helps you spot your personal triggers. There's even a report you can bring to your doctor.\n\nIt's free, private, and works on any phone.\n\n👉 myequilibrium.app`,
     url: 'https://myequilibrium.app',
   };
 
@@ -4026,7 +4026,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '41';
+const APP_VERSION = '42';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
