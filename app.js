@@ -3606,16 +3606,14 @@ document.addEventListener('submit', e => {
 
 
 // ── WELCOME TUTORIAL ─────────────────────────────────────────────
-const TUTORIAL_VERSION = 5;
+const TUTORIAL_VERSION = 6;
 
 // Detect platform for install instructions
-const _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-const _isAndroid = /android/i.test(navigator.userAgent);
-const _installStep = _isIOS
-  ? { icon: '📲', title: 'Install on iPhone', body: 'For the best experience, add Equilibrium to your home screen:<br><br>1. Tap the <strong>Share</strong> button (□↑) in Safari<br>2. Tap <strong>"Add to Home Screen"</strong><br>3. Tap <strong>Add</strong><br><br>It works like a native app — full screen & offline! 🌊' }
-  : _isAndroid
-  ? { icon: '📲', title: 'Install on Android', body: 'For the best experience, add Equilibrium to your home screen:<br><br>1. Tap the <strong>⋮ menu</strong> in Chrome<br>2. Tap <strong>"Add to Home screen"</strong><br>3. Tap <strong>Add</strong><br><br>It works like a native app — full screen & offline! 🌊' }
-  : null;
+const _installStep = {
+  icon: '📲',
+  title: 'Install on Your Phone',
+  body: '<strong>iPhone:</strong> Open in Safari → tap the Share button (□↑) → <strong>"Add to Home Screen"</strong> → Add<br><br><strong>Android:</strong> Open in Chrome → tap the <strong>⋮ menu</strong> → <strong>"Add to Home screen"</strong> → Add<br><br>Works like a native app — full screen & offline! 🌊'
+};
 
 const TUTORIAL_STEPS = [
   { icon: '🌊', title: 'Welcome to Equilibrium', body: 'Your Ménière\'s companion for tracking symptoms, diet, and wellness. Let\'s take a quick tour.' },
@@ -4054,7 +4052,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '47';
+const APP_VERSION = '48';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
