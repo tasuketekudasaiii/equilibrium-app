@@ -62,21 +62,22 @@ window.FireSync = (() => {
     }
   }
 
-  // ── Load all cloud data → localStorage ──────────────────────────
+  // ── Load all cloud data → localStorage (via CryptoStore) ────────
   async function loadFromCloud() {
     if (!_user) return false;
     try {
       const doc = await userDoc().get();
       if (doc.exists) {
         const data = doc.data();
+        // Write through CryptoStore so data is encrypted at rest.
         Object.entries(data).forEach(([k, v]) => {
-          if (k.startsWith('eq_')) localStorage.setItem(k, JSON.stringify(v));
+          if (k.startsWith('eq_')) window.CryptoStore?.set(k, v);
         });
         return true;
       }
       return false;
     } catch (e) {
-      console.warn('[FireSync] load error:', e);
+      console.warn('[FireSync] load error:', e.code || e.message);
       return false;
     }
   }
@@ -86,10 +87,9 @@ window.FireSync = (() => {
     if (!_user) return;
     const allData = {};
     DATA_KEYS.forEach(k => {
-      try {
-        const v = JSON.parse(localStorage.getItem(k));
-        if (v !== null) allData[k] = v;
-      } catch {}
+      // Read from the decrypted in-memory cache, not raw localStorage.
+      const v = window.CryptoStore?.get(k);
+      if (v !== null && v !== undefined) allData[k] = v;
     });
     if (!Object.keys(allData).length) return;
     try {
@@ -116,7 +116,7 @@ window.FireSync = (() => {
 
   // ── Auth state listener ──────────────────────────────────────────
   auth.onAuthStateChanged(async user => {
-    console.log('[FireSync] auth state changed:', user?.email || 'signed out');
+    // Note: do not log user.email here — it would expose PII in browser DevTools.
     _user = user;
     _initialized = true;
 
@@ -130,7 +130,7 @@ window.FireSync = (() => {
         if (lastUID && lastUID !== user.uid) {
         // Different account — wipe local data, store new UID, then
         // force a full reload so the PWA starts completely fresh
-        console.log('[FireSync] account switch — reloading for fresh state');
+        // Account switch — wipe and reload for clean state
         DATA_KEYS.forEach(k => localStorage.removeItem(k));
         localStorage.setItem('eq_last_uid', user.uid);
         window.location.reload();
@@ -178,7 +178,7 @@ window.FireSync = (() => {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
       const result = await auth.signInWithPopup(provider);
-      console.log('[FireSync] popup result:', result?.user?.email);
+      // Sign-in successful — do not log user email
       if (result && result.user) {
         _user = result.user;
         applySignedInUI();
@@ -268,6 +268,13 @@ window.FireSync = (() => {
     }
   }
 
+  // ── Get fresh ID token (used by the Cloudflare Worker for server-side auth) ──
+  async function getIdToken() {
+    if (!_user) return null;
+    try { return await _user.getIdToken(/* forceRefresh */ false); }
+    catch { return null; }
+  }
+
   // ── Sign out ─────────────────────────────────────────────────────
   async function signOut() {
     await flush(); // save any pending writes first
@@ -286,7 +293,7 @@ window.FireSync = (() => {
   }
 
   return {
-    isSignedIn, getUser, push, flush,
+    isSignedIn, getUser, getIdToken, push, flush,
     signInGoogle, signInEmail, createAccount, signOut, resetPassword,
     updateAccountBadge,
   };

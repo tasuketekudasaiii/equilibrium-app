@@ -124,6 +124,145 @@ const FOOD_DB = [
   {n:'Low-sodium salt substitute',s:0,srv:'1 tsp'},
 ];
 
+// ── Security: HTML escaping ───────────────────────────────────────
+// Apply to every piece of user-supplied data inserted into innerHTML
+// to prevent XSS (cross-site scripting) attacks.
+function escapeHTML(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Security: Encrypted localStorage via Web Crypto ──────────────
+// Health data is encrypted with AES-256-GCM before being written to
+// localStorage. The CryptoKey is stored in IndexedDB (non-extractable),
+// so extensions that can only scrape localStorage see only ciphertext.
+// Falls back to plaintext gracefully if the Crypto API is unavailable.
+const CryptoStore = (() => {
+  const IDB_DB    = 'eq_crypto';
+  const IDB_STORE = 'keys';
+  const IDB_KEY   = 'main';
+  const PREFIX    = 'ENC1:';
+
+  let _key   = null;
+  let _cache = {};
+
+  function _idbRun(mode, fn) {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_DB, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+      req.onsuccess = e => {
+        try {
+          const tx = e.target.result.transaction(IDB_STORE, mode);
+          resolve(fn(tx.objectStore(IDB_STORE)));
+        } catch(err) { reject(err); }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function _loadKey() {
+    return _idbRun('readonly', store => new Promise((res, rej) => {
+      const r = store.get(IDB_KEY);
+      r.onsuccess = () => res(r.result ?? null);
+      r.onerror   = rej;
+    })).catch(() => null);
+  }
+
+  async function _saveKey(k) {
+    return _idbRun('readwrite', store => new Promise((res, rej) => {
+      const r = store.put(k, IDB_KEY);
+      r.onsuccess = res; r.onerror = rej;
+    })).catch(() => {});
+  }
+
+  async function _encrypt(value) {
+    if (!_key) return JSON.stringify(value);
+    const iv  = crypto.getRandomValues(new Uint8Array(12));
+    const enc = await crypto.subtle.encrypt(
+      { name:'AES-GCM', iv }, _key,
+      new TextEncoder().encode(JSON.stringify(value))
+    );
+    const buf = new Uint8Array(12 + enc.byteLength);
+    buf.set(iv, 0); buf.set(new Uint8Array(enc), 12);
+    return PREFIX + btoa(String.fromCharCode(...buf));
+  }
+
+  async function _decrypt(raw) {
+    if (!raw.startsWith(PREFIX)) return JSON.parse(raw); // legacy plaintext
+    const buf = Uint8Array.from(atob(raw.slice(PREFIX.length)), c => c.charCodeAt(0));
+    const dec = await crypto.subtle.decrypt(
+      { name:'AES-GCM', iv: buf.slice(0,12) }, _key, buf.slice(12)
+    );
+    return JSON.parse(new TextDecoder().decode(dec));
+  }
+
+  async function _writeRaw(k, value) {
+    try {
+      localStorage.setItem(k, await _encrypt(value));
+    } catch {
+      try { localStorage.setItem(k, JSON.stringify(value)); } catch {}
+    }
+  }
+
+  // Only these keys hold sensitive health data and get encrypted.
+  // UI-state flags (tutorial seen, weekly summary, etc.) stay in
+  // plain localStorage so direct getItem() calls keep working.
+  const HEALTH_KEYS = new Set([
+    'eq_attacks','eq_meds','eq_doses','eq_sodium','eq_hydration',
+    'eq_stress','eq_sleep','eq_caff','eq_emergency','eq_settings',
+    'eq_badges','eq_pressure','eq_onboarding',
+  ]);
+
+  return {
+    async init() {
+      // Load or generate a non-extractable AES-256-GCM key from IndexedDB
+      try {
+        _key = await _loadKey();
+        if (!_key) {
+          _key = await crypto.subtle.generateKey(
+            { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+          );
+          await _saveKey(_key);
+        }
+      } catch { _key = null; } // degrade gracefully if Crypto unavailable
+
+      // Pre-load & decrypt health data keys into memory cache.
+      // Any legacy plaintext value is re-encrypted on the way in.
+      const toMigrate = [];
+      for (const k of HEALTH_KEYS) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        try {
+          const val = await _decrypt(raw);
+          _cache[k] = val;
+          if (!raw.startsWith(PREFIX)) toMigrate.push([k, val]);
+        } catch { _cache[k] = null; }
+      }
+      for (const [k, v] of toMigrate) await _writeRaw(k, v);
+    },
+
+    get(k)    { return _cache[k] ?? null; },
+
+    set(k, v) {
+      _cache[k] = v;
+      _writeRaw(k, v); // fire-and-forget async encrypted write
+    },
+
+    remove(k) { delete _cache[k]; localStorage.removeItem(k); },
+
+    // Used by export panel — returns all cached eq_* values (already decrypted)
+    exportAll() {
+      const out = {};
+      Object.entries(_cache).forEach(([k,v]) => { if (v !== null) out[k] = v; });
+      return out;
+    },
+
+    // Direct localStorage reads still needed by some non-DB code (weekly flags etc.)
+    // These are non-sensitive keys — they stay in plaintext.
+    rawGet(k)    { return localStorage.getItem(k); },
+    rawSet(k, v) { localStorage.setItem(k, v); },
+  };
+})();
+
 // ── Utilities ─────────────────────────────────────────────────────
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const nowISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; };
@@ -177,8 +316,8 @@ function showToast(msg, ms=2500) {
 
 // ── Storage ───────────────────────────────────────────────────────
 const DB = {
-  g(k){try{return JSON.parse(localStorage.getItem(k))||null}catch{return null}},
-  s(k,v){localStorage.setItem(k,JSON.stringify(v)); window.FireSync?.push(k,v);},
+  g(k){ return CryptoStore.get(k); },
+  s(k,v){ CryptoStore.set(k,v); window.FireSync?.push(k,v); },
 
   // Attacks
   attacks(){return this.g(K.attacks)||[]},
@@ -628,7 +767,7 @@ function attackEntry(a) {
       <div class="attack-date">${fmtDate(a.date)} ${a.startTime ? '· '+fmtTime(a.startTime) : ''}</div>
       <div class="attack-main">Intensity ${a.intensity}/10 · ${fmtDur(a.duration)}</div>
       <div class="attack-tags">${(a.symptoms||[]).map(s=>`<span class="attack-tag">${s}</span>`).join('')}</div>
-      ${a.notes ? `<div style="font-size:13px;color:var(--text-m);margin-top:4px">${a.notes}</div>` : ''}
+      ${a.notes ? `<div style="font-size:13px;color:var(--text-m);margin-top:4px">${escapeHTML(a.notes)}</div>` : ''}
     </div>`;
 }
 
@@ -1028,7 +1167,7 @@ function renderWellness() {
 
       <div class="form-group">
         <label class="form-label">Journal (optional)</label>
-        <textarea class="form-input" id="stress-notes" placeholder="How are you feeling today? Any worries or wins?">${stress.notes||''}</textarea>
+        <textarea class="form-input" id="stress-notes" placeholder="How are you feeling today? Any worries or wins?">${escapeHTML(stress.notes||'')}</textarea>
       </div>
 
       <button class="btn btn-primary btn-full" id="btn-save-stress">Save Check-In</button>
@@ -1869,8 +2008,8 @@ function renderMedicationsPanel() {
           <div class="dose-item">
             <div class="dose-time">${item.time}</div>
             <div class="dose-name">
-              <div class="dose-name-text">${item.med.name}</div>
-              <div class="dose-dosage">${item.med.dosage} · <span class="med-badge">${item.med.type}</span></div>
+              <div class="dose-name-text">${escapeHTML(item.med.name)}</div>
+              <div class="dose-dosage">${escapeHTML(item.med.dosage)} · <span class="med-badge">${escapeHTML(item.med.type)}</span></div>
             </div>
             <button class="dose-check ${item.taken?'taken':item.missed?'missed':''}"
               data-action="toggle-dose"
@@ -1887,8 +2026,8 @@ function renderMedicationsPanel() {
         <div class="list-item">
           <div class="list-icon">💊</div>
           <div class="list-content">
-            <div class="list-title">${m.name} <span class="med-badge">${m.type}</span></div>
-            <div class="list-sub">${m.dosage} · ${(m.times||[]).join(', ')}</div>
+            <div class="list-title">${escapeHTML(m.name)} <span class="med-badge">${escapeHTML(m.type)}</span></div>
+            <div class="list-sub">${escapeHTML(m.dosage)} · ${(m.times||[]).join(', ')}</div>
           </div>
           <div class="list-actions">
             <button class="btn-icon" data-action="del-med" data-id="${m.id}" style="font-size:14px;color:var(--text-m)">🗑</button>
@@ -2272,9 +2411,9 @@ function openPrintReport(from, to) {
 
 <!-- Patient info -->
 ${e.name||e.doctor ? `<div style="background:#EBF5F2;border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:32px;flex-wrap:wrap">
-  ${e.name ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Patient</div><div style="font-size:15px;font-weight:700">${e.name}</div></div>` : ''}
-  ${e.diagnosis ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Diagnosis</div><div style="font-size:15px;font-weight:700">${e.diagnosis}</div></div>` : ''}
-  ${e.doctor ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Physician</div><div style="font-size:15px;font-weight:700">${e.doctor}</div></div>` : ''}
+  ${e.name ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Patient</div><div style="font-size:15px;font-weight:700">${escapeHTML(e.name)}</div></div>` : ''}
+  ${e.diagnosis ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Diagnosis</div><div style="font-size:15px;font-weight:700">${escapeHTML(e.diagnosis)}</div></div>` : ''}
+  ${e.doctor ? `<div><div style="font-size:10px;font-weight:700;color:#6B8A83;text-transform:uppercase;letter-spacing:.5px">Physician</div><div style="font-size:15px;font-weight:700">${escapeHTML(e.doctor)}</div></div>` : ''}
 </div>` : ''}
 
 <!-- Stats -->
@@ -2342,7 +2481,7 @@ ${meds.length > 0 ? `
     let medTaken=0, medTotal=0;
     for(let i=0;i<days;i++){const d=daysAgo(i),doses=DB.dosesFor(d);(m.times||[]).forEach(t=>{medTotal++;if(doses.find(dd=>dd.medId===m.id&&dd.time===t&&dd.taken))medTaken++;});}
     const pct = medTotal>0?Math.round(medTaken/medTotal*100):null;
-    return `<tr><td><strong>${m.name}</strong></td><td>${m.dosage}</td><td>${m.type}</td><td>${(m.times||[]).join(', ')}</td><td>${pct!=null?`<span class="badge ${pct>=80?'badge-green':pct>=60?'badge-yellow':'badge-red'}">${pct}%</span>`:'—'}</td></tr>`;
+    return `<tr><td><strong>${escapeHTML(m.name)}</strong></td><td>${escapeHTML(m.dosage)}</td><td>${escapeHTML(m.type)}</td><td>${(m.times||[]).join(', ')}</td><td>${pct!=null?`<span class="badge ${pct>=80?'badge-green':pct>=60?'badge-yellow':'badge-red'}">${pct}%</span>`:'—'}</td></tr>`;
   }).join('')}
 </table>` : '<p style="color:#6B8A83;font-size:14px;margin-top:8px">No medications logged.</p>'}
 
@@ -2374,12 +2513,12 @@ function renderEmergencyPanel() {
     ${e.name || e.doctor ? `
     <div class="e-card" style="margin-bottom:var(--sp-md)">
       <div class="e-card-title">🚨 Emergency Card</div>
-      ${e.name ? `<div class="e-field"><div class="e-field-label">Patient Name</div><div class="e-field-val">${e.name}</div></div>` : ''}
-      ${e.diagnosis ? `<div class="e-field"><div class="e-field-label">Diagnosis</div><div class="e-field-val">${e.diagnosis}</div></div>` : ''}
-      ${e.medications ? `<div class="e-field"><div class="e-field-label">Current Medications</div><div class="e-field-val">${e.medications}</div></div>` : ''}
-      ${e.doctor ? `<div class="e-field"><div class="e-field-label">Doctor</div><div class="e-field-val">${e.doctor}${e.doctorPhone?' · '+e.doctorPhone:''}</div></div>` : ''}
-      ${e.emergencyContact ? `<div class="e-field"><div class="e-field-label">Emergency Contact</div><div class="e-field-val">${e.emergencyContact}${e.emergencyPhone?' · '+e.emergencyPhone:''}</div></div>` : ''}
-      ${e.notes ? `<div class="e-field"><div class="e-field-label">Notes</div><div class="e-field-val">${e.notes}</div></div>` : ''}
+      ${e.name ? `<div class="e-field"><div class="e-field-label">Patient Name</div><div class="e-field-val">${escapeHTML(e.name)}</div></div>` : ''}
+      ${e.diagnosis ? `<div class="e-field"><div class="e-field-label">Diagnosis</div><div class="e-field-val">${escapeHTML(e.diagnosis)}</div></div>` : ''}
+      ${e.medications ? `<div class="e-field"><div class="e-field-label">Current Medications</div><div class="e-field-val">${escapeHTML(e.medications)}</div></div>` : ''}
+      ${e.doctor ? `<div class="e-field"><div class="e-field-label">Doctor</div><div class="e-field-val">${escapeHTML(e.doctor)}${e.doctorPhone?' · '+escapeHTML(e.doctorPhone):''}</div></div>` : ''}
+      ${e.emergencyContact ? `<div class="e-field"><div class="e-field-label">Emergency Contact</div><div class="e-field-val">${escapeHTML(e.emergencyContact)}${e.emergencyPhone?' · '+escapeHTML(e.emergencyPhone):''}</div></div>` : ''}
+      ${e.notes ? `<div class="e-field"><div class="e-field-label">Notes</div><div class="e-field-val">${escapeHTML(e.notes)}</div></div>` : ''}
     </div>` : ''}
 
     <div class="card">
@@ -2387,35 +2526,35 @@ function renderEmergencyPanel() {
       <form id="form-emergency">
         <div class="form-group">
           <label class="form-label">Your name</label>
-          <input type="text" class="form-input" name="name" value="${e.name||''}" placeholder="Your full name">
+          <input type="text" class="form-input" name="name" value="${escapeHTML(e.name||'')}" placeholder="Your full name">
         </div>
         <div class="form-group">
           <label class="form-label">Diagnosis</label>
-          <input type="text" class="form-input" name="diagnosis" value="${e.diagnosis||"Ménière's Disease"}" placeholder="Ménière's Disease">
+          <input type="text" class="form-input" name="diagnosis" value="${escapeHTML(e.diagnosis||"Ménière's Disease")}" placeholder="Ménière's Disease">
         </div>
         <div class="form-group">
           <label class="form-label">Current medications</label>
-          <textarea class="form-input" name="medications" placeholder="List your medications and dosages">${e.medications||''}</textarea>
+          <textarea class="form-input" name="medications" placeholder="List your medications and dosages">${escapeHTML(e.medications||'')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Doctor's name</label>
-          <input type="text" class="form-input" name="doctor" value="${e.doctor||''}" placeholder="Dr. Smith">
+          <input type="text" class="form-input" name="doctor" value="${escapeHTML(e.doctor||'')}" placeholder="Dr. Smith">
         </div>
         <div class="form-group">
           <label class="form-label">Doctor's phone</label>
-          <input type="tel" class="form-input" name="doctorPhone" value="${e.doctorPhone||''}" placeholder="555-0100">
+          <input type="tel" class="form-input" name="doctorPhone" value="${escapeHTML(e.doctorPhone||'')}" placeholder="555-0100">
         </div>
         <div class="form-group">
           <label class="form-label">Emergency contact name</label>
-          <input type="text" class="form-input" name="emergencyContact" value="${e.emergencyContact||''}" placeholder="Jane Doe">
+          <input type="text" class="form-input" name="emergencyContact" value="${escapeHTML(e.emergencyContact||'')}" placeholder="Jane Doe">
         </div>
         <div class="form-group">
           <label class="form-label">Emergency contact phone</label>
-          <input type="tel" class="form-input" name="emergencyPhone" value="${e.emergencyPhone||''}" placeholder="555-0199">
+          <input type="tel" class="form-input" name="emergencyPhone" value="${escapeHTML(e.emergencyPhone||'')}" placeholder="555-0199">
         </div>
         <div class="form-group">
           <label class="form-label">Additional notes</label>
-          <textarea class="form-input" name="notes" placeholder="Allergies, special instructions...">${e.notes||''}</textarea>
+          <textarea class="form-input" name="notes" placeholder="Allergies, special instructions...">${escapeHTML(e.notes||'')}</textarea>
         </div>
         <button type="submit" class="btn btn-primary btn-full">Save Emergency Card</button>
       </form>
@@ -2468,8 +2607,8 @@ function foodItemHTML(f, sourceLabel) {
   return `
     <div class="food-item food-item-edit" data-base-sodium="${f.s}">
       <div class="food-item-info">
-        <div class="food-name">${f.n}</div>
-        <div class="food-serving">${srv}${sourceLabel ? ` · <span style="color:var(--text-m);font-style:italic">${sourceLabel}</span>` : ''}</div>
+        <div class="food-name">${escapeHTML(f.n)}</div>
+        <div class="food-serving">${escapeHTML(srv)}${sourceLabel ? ` · <span style="color:var(--text-m);font-style:italic">${escapeHTML(sourceLabel)}</span>` : ''}</div>
         ${f.f ? '<div class="food-flag">⚠️ HIGH SODIUM</div>' : ''}
       </div>
       <div class="food-item-add">
@@ -2548,13 +2687,13 @@ function renderFoodResults(query) {
   if (q.length >= 2) fetchFoodAPI(q);
 }
 
-const USDA_KEY = '8Au8ObeS6w8wz5GIWyh3GTPpyIOvhb3SqHZgWhY9';
-
+// USDA key removed from client — requests are now proxied through our
+// Cloudflare Worker which holds the key as a server-side secret.
 async function fetchFoodAPI(query) {
   const innerEl = qs('#api-results-inner');
   if (!innerEl) return;
   try {
-    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&api_key=${USDA_KEY}&pageSize=10&dataType=Foundation,SR%20Legacy,Branded`;
+    const url = `${WORKER_URL}/usda?q=${encodeURIComponent(query)}`;
     const resp = await fetch(url, {signal: AbortSignal.timeout(10000)});
     const data = await resp.json();
     const el = qs('#api-results-inner');
@@ -2734,7 +2873,7 @@ function showScannerFallback() {
 }
 
 // ── Plate Scanner ────────────────────────────────────────────────────
-const VISION_WORKER = 'https://equilibrium-vision.midorilabs.workers.dev';
+const WORKER_URL = 'https://equilibrium-vision.midorilabs.workers.dev';
 
 // ── Admin & AI camera access control ─────────────────────────────
 const ADMIN_EMAILS = ['georgie729@gmail.com', 'anaisabelmieses@gmail.com'];
@@ -2808,15 +2947,36 @@ async function handlePlatePhoto(file) {
     const base64 = await compressImage(file, 800, 0.7);
     const mediaType = file.type || 'image/jpeg';
 
-    // Send to worker
-    const resp = await fetch(VISION_WORKER, {
+    // Get a fresh Firebase ID token — verified server-side by the Worker,
+    // so auth cannot be bypassed by calling the Worker URL directly.
+    const idToken = await window.FireSync?.getIdToken?.();
+    if (!idToken) {
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Session expired</div><div class="empty-text">Please sign out and sign back in, then try again</div></div>`;
+      return;
+    }
+
+    // Send to worker (route: /vision)
+    const resp = await fetch(`${WORKER_URL}/vision`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      },
       body: JSON.stringify({ image: base64, mediaType })
     });
 
+    if (resp.status === 401 || resp.status === 403) {
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">🔒</div><div class="empty-title">Authentication failed</div><div class="empty-text">Please sign out and sign in again</div></div>`;
+      return;
+    }
+    if (resp.status === 429) {
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Daily limit reached</div><div class="empty-text">You've used your ${AI_DAILY_LIMIT} AI scans for today. Come back tomorrow!</div></div>`;
+      return;
+    }
+
     const data = await resp.json();
-    // Count this scan against the daily limit (admins excluded)
+    // Client-side counter kept in sync for the UI display only.
+    // The real enforcement happens on the Worker (server-side).
     if (!isAdmin()) incrementAIUses();
     if (!data.foods || data.foods.length === 0) {
       resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">🤔</div><div class="empty-title">Couldn't identify foods</div><div class="empty-text">Try a clearer photo or better lighting</div></div>`;
@@ -2861,8 +3021,8 @@ function renderPlateResults(foods, container) {
         <div class="card" style="margin-bottom:var(--sp-sm);padding:var(--sp-sm) var(--sp-md)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div style="flex:1">
-              <div style="font-size:14px;font-weight:600;color:var(--text)">${f.name.charAt(0).toUpperCase()+f.name.slice(1)}</div>
-              <div style="font-size:12px;color:var(--text-m);margin-top:2px">~${f.grams}g · ${f.notes||'estimated'}</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text)">${escapeHTML(f.name.charAt(0).toUpperCase()+f.name.slice(1))}</div>
+              <div style="font-size:12px;color:var(--text-m);margin-top:2px">~${escapeHTML(String(f.grams))}g · ${f.notes ? escapeHTML(f.notes) : 'estimated'}</div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
                 <input type="number" class="plate-sodium-edit" data-idx="${i}" value="${Math.round(f.sodium_mg)}" min="0" style="width:72px;font-size:16px;font-weight:700;color:${Math.round(f.sodium_mg*qtys[i])>400?'var(--danger)':'var(--accent)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--card);text-align:center">
                 <span style="font-size:12px;color:var(--text-m)">mg sodium</span>
@@ -3313,10 +3473,9 @@ function renderExportPanel() {
   });
 
   qs('#exp-json').addEventListener('click', () => {
-    const allData = {};
-    Object.keys(localStorage).filter(k => k.startsWith('eq_')).forEach(k => {
-      try { allData[k] = JSON.parse(localStorage.getItem(k)); } catch { allData[k] = localStorage.getItem(k); }
-    });
+    // CryptoStore.exportAll() returns the already-decrypted in-memory cache
+    // so the exported JSON is readable plaintext even though localStorage is encrypted.
+    const allData = CryptoStore.exportAll();
     downloadFile(`equilibrium-backup-${today()}.json`, JSON.stringify(allData, null, 2), 'application/json');
     showToast('Full backup exported!');
   });
@@ -3954,7 +4113,10 @@ function showWeeklySummary() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
-function init() {
+async function init() {
+  // Initialise encrypted storage before anything else reads from DB
+  await CryptoStore.init();
+
   // Restore active attack from storage (page reload resilience)
   const saved = DB.g(K.activeAttack);
   if (saved) {
@@ -4084,7 +4246,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '50';
+const APP_VERSION = '51';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
@@ -4173,7 +4335,7 @@ async function syncPushSubscription(sub) {
     const meds = DB.g(K.medications) || [];
     const settings = DB.settings();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    await fetch(`${VISION_WORKER}/subscribe`, {
+    await fetch(`${WORKER_URL}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: sub, medications: meds, settings, tz }),
