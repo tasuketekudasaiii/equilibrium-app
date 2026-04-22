@@ -44,8 +44,9 @@ const SODIUM_FACTS = [
   'Processed cheese like American cheese slices can have 400mg of sodium per slice — versus 50mg in fresh mozzarella.',
 ];
 
-function getSodiumFact() {
-  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+function getSodiumFact(dateStr) {
+  const d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+  const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
   return SODIUM_FACTS[dayOfYear % SODIUM_FACTS.length];
 }
 
@@ -948,7 +949,7 @@ function renderDiet() {
     <!-- Did you know? -->
     <div class="card" style="border-left:3px solid var(--danger)">
       <div class="card-title" style="margin-bottom:8px">💡 High Sodium — Did You Know?</div>
-      <p style="font-size:14px;line-height:1.65;color:var(--text-m)">${getSodiumFact()}</p>
+      <p style="font-size:14px;line-height:1.65;color:var(--text-m)">${getSodiumFact(t)}</p>
     </div>
 
     <!-- Hydration -->
@@ -4053,7 +4054,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '45';
+const APP_VERSION = '46';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
