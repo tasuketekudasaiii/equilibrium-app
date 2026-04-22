@@ -4084,7 +4084,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '49';
+const APP_VERSION = '50';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
