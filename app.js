@@ -1412,6 +1412,19 @@ function renderAboutPanel() {
     </div>
 
     <div class="card" style="border-left:3px solid #5B9B8A;text-align:center">
+      <div style="font-size:22px;margin-bottom:var(--sp-sm)">💬</div>
+      <div class="card-title" style="margin-bottom:var(--sp-sm)">We'd Love Your Feedback</div>
+      <p style="font-size:13px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-md)">
+        Your feedback genuinely shapes how Equilibrium grows. Whether it's a bug, an idea, or just a note to say hi — we read every single message.
+      </p>
+      <a href="mailto:feedback@myequilibrium.app"
+        class="btn btn-primary btn-full"
+        style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px">
+        ✉️ feedback@myequilibrium.app
+      </a>
+    </div>
+
+    <div class="card" style="border-left:3px solid #5B9B8A;text-align:center">
       <div style="font-size:22px;margin-bottom:var(--sp-sm)">💙</div>
       <div class="card-title" style="margin-bottom:var(--sp-sm)">Support Equilibrium</div>
       <p style="font-size:13px;color:var(--text-m);line-height:1.65;margin-bottom:var(--sp-md)">
@@ -3640,6 +3653,8 @@ const Tutorial = {
   markSeen() {
     localStorage.setItem(K.tutorialSeen, String(TUTORIAL_VERSION));
     this.hide();
+    // Show feedback email announcement to new users after tutorial finishes
+    setTimeout(() => showFeedbackAnnouncement(), 500);
   },
   _render() {
     const step = TUTORIAL_STEPS[this.current];
@@ -3848,6 +3863,14 @@ function renderReviewPanel() {
 }
 
 // ── WEEKLY SUMMARY ───────────────────────────────────────────────
+const FEEDBACK_ANNOUNCE_KEY = 'eq_feedback_v1';
+
+function showFeedbackAnnouncement() {
+  if (localStorage.getItem(FEEDBACK_ANNOUNCE_KEY)) return;
+  localStorage.setItem(FEEDBACK_ANNOUNCE_KEY, '1');
+  qs('#feedback-announce-overlay').classList.remove('hidden');
+}
+
 function showWeeklySummary() {
   const now = new Date();
   // Last week: Mon to Sun
@@ -3951,6 +3974,11 @@ function init() {
   // Wire tutorial
   initTutorial();
 
+  // Wire feedback announcement close button
+  qs('#btn-close-feedback-announce')?.addEventListener('click', () => {
+    qs('#feedback-announce-overlay').classList.add('hidden');
+  });
+
   // Wire weekly summary close button
   qs('#btn-close-weekly')?.addEventListener('click', () => {
     const thisMon = startOfWeek();
@@ -4005,6 +4033,10 @@ function init() {
   const seenTutorial = parseInt(localStorage.getItem(K.tutorialSeen) || '0');
   if (seenTutorial < TUTORIAL_VERSION) {
     setTimeout(() => Tutorial.show(), 700);
+    // New users see the announcement after the tutorial (via Tutorial.markSeen)
+  } else {
+    // Existing users: show feedback announcement once, after a short delay
+    setTimeout(() => showFeedbackAnnouncement(), 1200);
   }
 
   // Check notifications
@@ -4052,7 +4084,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '48';
+const APP_VERSION = '49';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
