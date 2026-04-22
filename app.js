@@ -152,6 +152,13 @@ function startOfWeek() {
   d.setDate(d.getDate() + diff);
   return d.toISOString().split('T')[0];
 }
+function startOfWeekFor(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
 function prevDate(dateStr) {
   const d = new Date(dateStr+'T12:00:00'); d.setDate(d.getDate()-1);
   return d.toISOString().split('T')[0];
@@ -511,7 +518,9 @@ function renderHome() {
   const stress  = DB.stressFor(t);
   const caff    = DB.caffFor(t);
   const allAtk  = DB.attacks();
-  const atk7    = allAtk.filter(a => a.date >= startOfWeek()).length;
+  const weekStart = startOfWeekFor(t);
+  const weekEnd   = shiftDate(weekStart, 6);
+  const atk7    = allAtk.filter(a => a.date >= weekStart && a.date <= weekEnd).length;
   const banner  = getBannerMsg(atk7, sodium, glasses);
   const dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   const sPct    = pct(sodium, sGoal);
@@ -543,7 +552,7 @@ function renderHome() {
       <div class="stat-card">
         <div class="stat-icon">⚡</div>
         <div class="stat-val ${atk7 >= 3 ? 'danger' : ''}">${atk7}</div>
-        <div class="stat-label">Attacks this week</div>
+        <div class="stat-label">${isToday ? 'Attacks this week' : 'Attacks that week'}</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">${stress ? MOODS.find(m=>m.id===stress.mood)?.e||'😌' : '—'}</div>
@@ -4044,7 +4053,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '43';
+const APP_VERSION = '44';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
