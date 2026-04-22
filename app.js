@@ -1251,6 +1251,31 @@ function renderStressChart() {
 }
 
 // ── SUPPORT PAGE ─────────────────────────────────────────────────
+async function shareApp() {
+  const shareData = {
+    title: 'Equilibrium — Ménière\'s Companion',
+    text: `I wanted to share this app with you 🌊\n\nEquilibrium is a free app designed for people living with Ménière's disease. It helps you:\n\n• Track vertigo attacks and symptoms\n• Monitor your sodium intake\n• Log medications and set reminders\n• Discover your personal triggers over time\n• Generate reports to share with your doctor\n\nIt's private, free, and works on any phone — no account needed to get started.\n\n👉 myequilibrium.app`,
+    url: 'https://myequilibrium.app',
+  };
+
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (e) {
+      // User cancelled — do nothing
+    }
+  } else {
+    // Fallback: copy to clipboard
+    const text = `${shareData.text}\n\n${shareData.url}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('📋 Link copied to clipboard!');
+    } catch {
+      showToast('Visit myequilibrium.app to share');
+    }
+  }
+}
+
 function openSupportPage() {
   openPanel('panel-support', () => {
     qs('#panel-support-body').innerHTML = `
@@ -1465,6 +1490,15 @@ function renderMore() {
       <div class="more-content">
         <div class="more-title">Support Equilibrium</div>
         <div class="more-sub">A small gesture, a big impact</div>
+      </div>
+      <div class="more-arrow">›</div>
+    </div>
+
+    <div class="more-item" data-action="share-app">
+      <div class="more-icon" style="background:#E8F5FF">🔗</div>
+      <div class="more-content">
+        <div class="more-title">Share Equilibrium</div>
+        <div class="more-sub">Help someone living with Ménière's</div>
       </div>
       <div class="more-arrow">›</div>
     </div>
@@ -3317,6 +3351,7 @@ document.addEventListener('click', e => {
       case 'add-med':     openPanel('panel-add-med', renderAddMedPanel); break;
       case 'about':       openPanel('panel-about', renderAboutPanel); break;
       case 'support':     openSupportPage(); break;
+      case 'share-app':   shareApp(); break;
       case 'settings':    openPanel('panel-settings', renderSettingsPanel); break;
       case 'export':      openPanel('panel-export', renderExportPanel); break;
       case 'account':     openPanel('panel-account', renderAccountPanel); break;
@@ -3991,7 +4026,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '40';
+const APP_VERSION = '41';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
