@@ -615,8 +615,8 @@ function renderHome() {
   renderWaterRow('#home-water', glasses, 'home');
   const signedIn = window.FireSync?.isSignedIn();
   const userName = window.FireSync?.getUser()?.displayName || window.FireSync?.getUser()?.email;
-  qs('#header-sub').textContent = signedIn && userName
-    ? `Signed in as ${userName.split('@')[0]}`
+  qs('#header-sub').innerHTML = signedIn && userName
+    ? `Signed in as ${userName.split('@')[0]}${isAdmin() ? ' <span style="background:#5B9B8A;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;margin-left:3px">Admin</span>' : ''}`
     : "Your Ménière's Companion";
 }
 
@@ -4053,7 +4053,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '44';
+const APP_VERSION = '45';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
