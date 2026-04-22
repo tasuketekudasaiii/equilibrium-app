@@ -2951,7 +2951,9 @@ async function handlePlatePhoto(file) {
     // so auth cannot be bypassed by calling the Worker URL directly.
     const idToken = await window.FireSync?.getIdToken?.();
     if (!idToken) {
-      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Session expired</div><div class="empty-text">Please sign out and sign back in, then try again</div></div>`;
+      // Token fetch failed — most likely a brief network issue.
+      // Ask the user to retry before blaming their session.
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not verify sign-in</div><div class="empty-text">Check your connection and try again. If the problem persists, sign out and back in.</div></div>`;
       return;
     }
 
@@ -4246,7 +4248,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '51';
+const APP_VERSION = '52';
 let _updatePending = false;
 
 async function checkForAppUpdate() {

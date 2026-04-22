@@ -270,9 +270,21 @@ window.FireSync = (() => {
 
   // ── Get fresh ID token (used by the Cloudflare Worker for server-side auth) ──
   async function getIdToken() {
-    if (!_user) return null;
-    try { return await _user.getIdToken(/* forceRefresh */ false); }
-    catch { return null; }
+    // Use the live auth.currentUser as the source of truth — _user can
+    // occasionally be stale if auth state changed without firing the listener.
+    const currentUser = auth.currentUser || _user;
+    if (!currentUser) return null;
+    try {
+      // Try cached token first (avoids an extra network round-trip)
+      return await currentUser.getIdToken(false);
+    } catch {
+      try {
+        // Cached token failed — force a fresh one from Google's servers
+        return await currentUser.getIdToken(true);
+      } catch {
+        return null;
+      }
+    }
   }
 
   // ── Sign out ─────────────────────────────────────────────────────
