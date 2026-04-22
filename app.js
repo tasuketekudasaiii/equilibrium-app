@@ -504,6 +504,7 @@ function renderOnboardingCard() {
 function renderHome() {
   const t       = S.viewDate;
   const isToday = t === today();
+  reconcileCaffeineAlcohol(t);
   const sodium  = DB.totalSodium(t);
   const sGoal   = DB.settings().sodiumGoal || SODIUM_GOAL;
   const glasses = DB.hydFor(t);
@@ -886,6 +887,7 @@ function renderLogAttackPanel(prefillStart) {
 function renderDiet() {
   const t       = S.viewDate;
   const isToday = t === today();
+  reconcileCaffeineAlcohol(t);
   const sGoal  = DB.settings().sodiumGoal || SODIUM_GOAL;
   const sodium  = DB.totalSodium(t);
   const items   = DB.sodiumFor(t).items || [];
@@ -3005,6 +3007,22 @@ function autoUntrackCaffeineAlcohol(foodName, date) {
   if (window.FireSync?.isSignedIn()) FireSync.push('eq_caff', DB.g(K.caff));
 }
 
+// Rebuild caffeine/alcohol counts from what's actually in the food log.
+// Fixes drift caused by items removed before the auto-untrack fix was deployed.
+function reconcileCaffeineAlcohol(date) {
+  const items = DB.sodiumFor(date).items || [];
+  let c = 0, a = 0;
+  for (const item of items) {
+    const { hasCaffeine, hasAlcohol } = detectCaffeineAlcohol(item.n || '');
+    if (hasCaffeine) c++;
+    if (hasAlcohol)  a++;
+  }
+  const ca = DB.caffFor(date);
+  if (ca.c !== c || ca.a !== a) {
+    DB.saveCaff(date, { ...ca, c, a });
+  }
+}
+
 // ── CALENDAR PICKER ──────────────────────────────────────────────
 const Cal = {
   year: new Date().getFullYear(),
@@ -4026,7 +4044,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '42';
+const APP_VERSION = '43';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
