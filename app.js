@@ -11,7 +11,7 @@ const ALCOHOL_WARN = 1;
 
 // ── Caffeine / Alcohol keyword detection ─────────────────────────────
 const CAFFEINE_KEYWORDS = ['coffee','espresso','cappuccino','latte','mocha','americano','cold brew','macchiato','cortado','flat white','iced coffee','tea','green tea','black tea','chai','matcha','energy drink','red bull','monster','celsius','bang energy','soda','cola','coke','pepsi','mountain dew','dr pepper'];
-const ALCOHOL_KEYWORDS  = ['beer','wine','vodka','whiskey','whisky','rum','gin','tequila','cocktail','champagne','margarita','ale','lager','stout','porter','cider','hard seltzer','bourbon','brandy','sake','sangria','mimosa','bloody mary','alcohol'];
+const ALCOHOL_KEYWORDS  = ['beer','wine','vodka','whiskey','whisky','rum','gin','tequila','champagne','margarita','ale','lager','stout','porter','hard cider','hard seltzer','bourbon','brandy','sake','sangria','mimosa','bloody mary','alcohol'];
 
 function detectCaffeineAlcohol(name) {
   const n = name.toLowerCase();
@@ -4054,7 +4054,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '46';
+const APP_VERSION = '47';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
