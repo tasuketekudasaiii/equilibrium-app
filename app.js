@@ -1283,7 +1283,7 @@ function renderAboutPanel() {
         </svg>
       </div>
       <div style="font-size:22px;font-weight:800;color:var(--text)">Equilibrium</div>
-      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v1.4</div>
+      <div style="font-size:13px;color:var(--text-m);margin-top:4px">Your Ménière's Companion · v2.0</div>
     </div>
 
     <div class="card">
@@ -3933,7 +3933,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '37';
+const APP_VERSION = '38';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
