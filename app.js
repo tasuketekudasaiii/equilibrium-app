@@ -147,15 +147,21 @@ const CryptoStore = (() => {
 
   function _idbRun(mode, fn) {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(IDB_DB, 1);
+      // Some restricted WebViews (Instagram, Facebook) never fire IDB events —
+      // timeout after 2 s so the app doesn't hang indefinitely.
+      const timer = setTimeout(() => reject(new Error('IDB timeout')), 2000);
+      let req;
+      try { req = indexedDB.open(IDB_DB, 1); }
+      catch(e) { clearTimeout(timer); return reject(e); }
       req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
       req.onsuccess = e => {
+        clearTimeout(timer);
         try {
           const tx = e.target.result.transaction(IDB_STORE, mode);
           resolve(fn(tx.objectStore(IDB_STORE)));
         } catch(err) { reject(err); }
       };
-      req.onerror = () => reject(req.error);
+      req.onerror = () => { clearTimeout(timer); reject(req.error); };
     });
   }
 
@@ -4139,8 +4145,13 @@ function showWeeklySummary() {
 
 // ── INIT ──────────────────────────────────────────────────────────
 async function init() {
-  // Initialise encrypted storage before anything else reads from DB
-  await CryptoStore.init();
+  // Initialise encrypted storage before anything else reads from DB.
+  // Guard with a 3 s timeout so restricted WebViews (Instagram, Facebook)
+  // that hang on IndexedDB never prevent the app from starting.
+  await Promise.race([
+    CryptoStore.init(),
+    new Promise(r => setTimeout(r, 3000)),
+  ]);
 
   // Restore active attack from storage (page reload resilience)
   const saved = DB.g(K.activeAttack);
@@ -4271,7 +4282,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '55';
+const APP_VERSION = '56';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
