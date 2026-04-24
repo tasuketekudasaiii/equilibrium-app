@@ -2938,9 +2938,12 @@ async function handlePlatePhoto(file) {
     </div>`;
 
   try {
-    // Compress image
+    // Compress image — canvas.toDataURL always outputs JPEG regardless of
+    // the original file type, so we must use 'image/jpeg' as the mediaType.
+    // Sending the original file.type (e.g. 'image/heic') would mismatch the
+    // actual encoded data and cause Anthropic to fail to decode the image.
     const base64 = await compressImage(file, 800, 0.7);
-    const mediaType = file.type || 'image/jpeg';
+    const mediaType = 'image/jpeg';
 
     // Get a fresh Firebase ID token — verified server-side by the Worker.
     // We go directly to firebase.auth().currentUser (the live SDK reference)
@@ -2985,6 +2988,13 @@ async function handlePlatePhoto(file) {
     }
 
     const data = await resp.json();
+
+    // Surface any AI service errors clearly
+    if (data.error) {
+      resultsEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">AI service error</div><div class="empty-text">${data.detail || data.error}</div></div>`;
+      return;
+    }
+
     // Client-side counter kept in sync for the UI display only.
     // The real enforcement happens on the Worker (server-side).
     if (!isAdmin()) incrementAIUses();
@@ -4261,7 +4271,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '54';
+const APP_VERSION = '55';
 let _updatePending = false;
 
 async function checkForAppUpdate() {

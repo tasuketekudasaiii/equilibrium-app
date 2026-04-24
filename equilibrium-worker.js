@@ -272,8 +272,13 @@ export default {
         });
 
         if (!anthropicResp.ok) {
+          let detail = `HTTP ${anthropicResp.status}`;
+          try {
+            const errBody = await anthropicResp.json();
+            detail = errBody?.error?.message || errBody?.error?.type || detail;
+          } catch {}
           return jsonResponse(
-            { error: 'AI service error', status: anthropicResp.status }, 502, cors
+            { error: 'AI service error', detail }, 502, cors
           );
         }
 
