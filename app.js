@@ -263,6 +263,10 @@ const CryptoStore = (() => {
   };
 })();
 
+// Expose CryptoStore globally so firebase.js can use it for
+// cloud-loaded data (loadFromCloud / migrateLocalToCloud).
+window.CryptoStore = CryptoStore;
+
 // ── Utilities ─────────────────────────────────────────────────────
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const nowISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; };
@@ -1630,15 +1634,6 @@ function renderMore() {
     </div>
 
     <!-- Year in Review — re-enable Jan 1 next year -->
-
-    <div class="more-item" data-action="account">
-      <div class="more-icon" style="background:#EBF5F2">👤</div>
-      <div class="more-content">
-        <div class="more-title">Account & Backup</div>
-        <div class="more-sub" id="more-account-sub">${window.FireSync?.isSignedIn() ? ((window.FireSync.getUser()?.displayName || window.FireSync.getUser()?.email || 'Signed in') + (isAdmin() ? ' <span style="background:#5B9B8A;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;margin-left:4px">Admin</span>' : '')) : 'Sign in to back up your data'}</div>
-      </div>
-      <div class="more-arrow">›</div>
-    </div>
 
     <div class="more-item" data-action="about">
       <div class="more-icon" style="background:#EEF0FF">ℹ️</div>
@@ -3722,6 +3717,11 @@ document.getElementById('btn-home').addEventListener('click', () => {
   switchTab('home');
 });
 
+// Account button (header)
+document.getElementById('btn-account').addEventListener('click', () => {
+  openPanel('panel-account', renderAccountPanel);
+});
+
 // Theme toggle
 document.getElementById('btn-theme').addEventListener('click', () => {
   const s = DB.settings();
@@ -4261,7 +4261,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '53';
+const APP_VERSION = '54';
 let _updatePending = false;
 
 async function checkForAppUpdate() {

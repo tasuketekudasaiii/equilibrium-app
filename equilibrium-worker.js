@@ -92,7 +92,7 @@ async function verifyFirebaseToken(token) {
     throw new Error('Invalid issuer');
   if (payload.aud !== FIREBASE_PROJECT_ID)
     throw new Error('Invalid audience');
-  if (!payload.sub || !payload.uid)
+  if (!payload.sub)
     throw new Error('Missing subject/uid claim');
 
   // ── Signature check ────────────────────────────────────────────
@@ -206,7 +206,7 @@ export default {
         );
       }
 
-      const uid      = userPayload.uid;
+      const uid      = userPayload.sub;
       const email    = (userPayload.email || '').toLowerCase().trim();
       const isAdmin  = ADMIN_EMAILS.includes(email);
 

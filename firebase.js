@@ -155,13 +155,16 @@ window.FireSync = (() => {
     }
   });
 
-  // ── Update the account icon/badge in More tab + header ──────────
+  // ── Update the account icon/badge in header ──────────────────────
   function updateAccountBadge() {
-    const el = document.getElementById('more-account-sub');
-    if (el) {
-      el.textContent = _user
-        ? (_user.displayName || _user.email || 'Signed in')
-        : 'Sign in to back up your data';
+    // Update header account button
+    const btn = document.getElementById('btn-account');
+    if (btn) {
+      btn.title = _user
+        ? (_user.displayName || _user.email || 'Account')
+        : 'Account — tap to sign in';
+      // Show a tinted style when signed in
+      btn.style.opacity = _user ? '1' : '0.7';
     }
     // Update header subtitle to show signed-in name
     const hdr = document.getElementById('header-sub');
