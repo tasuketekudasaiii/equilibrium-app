@@ -4227,9 +4227,12 @@ async function init() {
   }
   initYearReview();
 
-  // Show welcome tutorial for first-time users
+  // Show welcome tutorial for first-time users.
+  // ?tour=1 in the URL forces the tutorial regardless of prior visits —
+  // useful for sharing a link that always shows onboarding (e.g. Instagram).
+  const forceTour = new URLSearchParams(location.search).get('tour') === '1';
   const seenTutorial = parseInt(localStorage.getItem(K.tutorialSeen) || '0');
-  if (seenTutorial < TUTORIAL_VERSION) {
+  if (forceTour || seenTutorial < TUTORIAL_VERSION) {
     setTimeout(() => Tutorial.show(), 700);
     // New users see the announcement after the tutorial (via Tutorial.markSeen)
   } else {
@@ -4282,7 +4285,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '56';
+const APP_VERSION = '57';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
