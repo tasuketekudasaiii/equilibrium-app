@@ -766,7 +766,7 @@ function renderHome() {
   const signedIn = window.FireSync?.isSignedIn();
   const userName = window.FireSync?.getUser()?.displayName || window.FireSync?.getUser()?.email;
   qs('#header-sub').innerHTML = signedIn && userName
-    ? `Signed in as ${userName.split('@')[0]}${isAdmin() ? ' <span style="background:#5B9B8A;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;margin-left:3px">Admin</span>' : ''}`
+    ? `Signed in as ${escapeHTML(userName.split('@')[0])}${isAdmin() ? ' <span style="background:#5B9B8A;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;margin-left:3px">Admin</span>' : ''}`
     : "Your Ménière's Companion";
 }
 
@@ -2620,7 +2620,7 @@ function foodItemHTML(f, sourceLabel) {
         </div>
         <input type="number" class="form-input food-sodium-edit" value="${f.s}" min="0" max="99999" data-base="${f.s}">
         <span class="food-sodium-unit">mg</span>
-        <button class="btn btn-primary btn-sm food-add-btn" data-food='${data}'>Add</button>
+        <button class="btn btn-primary btn-sm food-add-btn" data-food="${data.replace(/"/g,'&quot;')}">Add</button>
       </div>
     </div>`;
 }
@@ -4285,7 +4285,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── App update checker ────────────────────────────────────────────────
 // Detects new deployments and prompts the user to refresh on iOS PWA
-const APP_VERSION = '57';
+const APP_VERSION = '58';
 let _updatePending = false;
 
 async function checkForAppUpdate() {
